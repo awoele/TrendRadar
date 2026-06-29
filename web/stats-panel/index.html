@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrendRadar 统计</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">TrendRadar</p>
+        <h1>抓取统计</h1>
+      </div>
+      <nav class="nav-links" aria-label="页面导航">
+        <a href="../index.html">热点页</a>
+        <a href="../config/">配置</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="status-band" id="statusBand">
+        <div>
+          <p class="eyebrow">最后更新</p>
+          <h2 id="updatedAt">读取中</h2>
+        </div>
+        <a class="primary-link" href="../index.html">打开最新报告</a>
+      </section>
+
+      <section class="metric-grid" aria-label="核心统计">
+        <article class="metric">
+          <span>抓取条数</span>
+          <strong id="totalCrawled">-</strong>
+        </article>
+        <article class="metric">
+          <span>命中条数</span>
+          <strong id="totalMatched">-</strong>
+        </article>
+        <article class="metric">
+          <span>命中率</span>
+          <strong id="matchRate">-</strong>
+        </article>
+        <article class="metric">
+          <span>失败平台</span>
+          <strong id="failedCount">-</strong>
+        </article>
+      </section>
+
+      <section class="layout">
+        <section class="panel platform-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Platforms</p>
+              <h2>平台表现</h2>
+            </div>
+            <span class="pill" id="platformCount">0 个平台</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>平台</th>
+                  <th>抓取</th>
+                  <th>命中</th>
+                  <th>占比</th>
+                </tr>
+              </thead>
+              <tbody id="platformRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="side-stack">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Keywords</p>
+                <h2>关键词排行</h2>
+              </div>
+            </div>
+            <div class="rank-list" id="keywordRows"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Health</p>
+                <h2>失败平台</h2>
+              </div>
+            </div>
+            <div class="failure-list" id="failedPlatforms"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">History</p>
+                <h2>最近报告</h2>
+              </div>
+            </div>
+            <div class="report-list" id="reportRows"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <template id="emptyTemplate">
+      <p class="empty">暂无数据</p>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
