@@ -56,7 +56,7 @@ jobs:
           STORAGE_BACKEND: "local"
           STORAGE_HTML_ENABLED: "true"
           STORAGE_TXT_ENABLED: "true"
-          ENABLE_NOTIFICATION: ${{ vars.ENABLE_NOTIFICATION || 'false' }}
+          ENABLE_NOTIFICATION: "false"
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -77,8 +77,12 @@ jobs:
 
       - name: Prepare public artifact
         env:
-          KEEP_DAYS: ${{ github.event.inputs.keep_days || '7' }}
-        run: python scripts/prepare_pages_artifact.py --source output --dest public --keep-days "$KEEP_DAYS"
+          KEEP_DAYS: ${{ github.event.inputs.keep_days }}
+        run: |
+          if [ -z "$KEEP_DAYS" ]; then
+            KEEP_DAYS=7
+          fi
+          python scripts/prepare_pages_artifact.py --source output --dest public --keep-days "$KEEP_DAYS"
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
