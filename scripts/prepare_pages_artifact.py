@@ -1,4 +1,5 @@
 import argparse
+import csv
 import html
 import json
 import re
@@ -213,6 +214,7 @@ def _parse_txt_snapshot_content(txt_path: Path) -> dict:
                     "rank": int(item.group(1)),
                     "title": title,
                     "url": url,
+                    "source_type": "hotlist",
                 }
             )
 
@@ -228,11 +230,93 @@ def _parse_txt_snapshot_content(txt_path: Path) -> dict:
     }
 
 
-def _build_public_content(source: Path) -> dict:
+def _imported_search_content(import_source: Path) -> dict:
+    if not import_source.exists():
+        return {
+            "platforms": [],
+            "items": [],
+        }
+
+    platforms = {}
+    items = []
+    seen_urls = set()
+
+    for csv_file in sorted(import_source.glob("*.csv")):
+        with csv_file.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                platform = (row.get("platform") or "").strip().lower()
+                if platform != "douyin":
+                    continue
+
+                title = (row.get("title") or "").strip()
+                url = (row.get("url") or "").strip()
+                if not title or not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+
+                platform_id = "douyin-search"
+                platforms.setdefault(
+                    platform_id,
+                    {
+                        "id": platform_id,
+                        "name": "抖音搜索",
+                        "count": 0,
+                    },
+                )
+                platforms[platform_id]["count"] += 1
+                items.append(
+                    {
+                        "platform_id": platform_id,
+                        "platform_name": "抖音搜索",
+                        "rank": None,
+                        "title": title,
+                        "url": url,
+                        "source_type": "search_import",
+                        "author": (row.get("author") or "").strip(),
+                        "description": (row.get("description") or "").strip(),
+                        "published_at": (row.get("published_at") or "").strip(),
+                        "likes": (row.get("likes") or "").strip(),
+                        "comments": (row.get("comments") or "").strip(),
+                        "shares": (row.get("shares") or "").strip(),
+                    }
+                )
+
+    return {
+        "platforms": list(platforms.values()),
+        "items": items,
+    }
+
+
+def _merge_platform_counts(*platform_lists: list) -> list:
+    merged = {}
+    for platform_list in platform_lists:
+        for platform in platform_list:
+            platform_id = platform["id"]
+            merged.setdefault(
+                platform_id,
+                {
+                    "id": platform_id,
+                    "name": platform.get("name") or platform_id,
+                    "count": 0,
+                },
+            )
+            merged[platform_id]["count"] += int(platform.get("count", 0) or 0)
+    return list(merged.values())
+
+
+def _build_public_content(source: Path, import_source: Path = Path("data/imports")) -> dict:
     content = _parse_txt_snapshot_content(_latest_txt_snapshot(source))
+    imported = _imported_search_content(Path(import_source))
+    content["items"] = imported["items"] + content["items"]
+    content["platforms"] = _merge_platform_counts(imported["platforms"], content["platforms"])
+    content["total"] = len(content["items"])
     content["generated_at"] = (
         datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     )
+    content["imports"] = {
+        "total": len(imported["items"]),
+        "platforms": imported["platforms"],
+    }
     return content
 
 
@@ -292,12 +376,14 @@ def prepare_pages_artifact(
     panel_source: Path = Path("web/config-panel"),
     stats_panel_source: Path = Path("web/stats-panel"),
     content_panel_source: Path = Path("web/content-panel"),
+    import_source: Path = Path("data/imports"),
 ) -> dict:
     source = Path(source)
     dest = Path(dest)
     panel_source = Path(panel_source)
     stats_panel_source = Path(stats_panel_source)
     content_panel_source = Path(content_panel_source)
+    import_source = Path(import_source)
 
     if not (source / "index.html").exists():
         raise FileNotFoundError(f"Missing public report: {source / 'index.html'}")
@@ -369,7 +455,7 @@ def prepare_pages_artifact(
         json.dumps(stats, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    content = _build_public_content(source)
+    content = _build_public_content(source, import_source)
     (dest / "content.json").write_text(
         json.dumps(content, ensure_ascii=False, indent=2),
         encoding="utf-8",

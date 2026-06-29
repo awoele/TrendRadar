@@ -220,6 +220,10 @@ select {
   font-family: "Cascadia Mono", Consolas, monospace;
 }
 
+.content-rank.search {
+  background: var(--teal);
+}
+
 .content-platform {
   display: block;
   margin-top: 6px;
@@ -240,6 +244,13 @@ select {
 .content-title:hover {
   color: var(--blue);
   text-decoration: underline;
+}
+
+.content-detail {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .content-meta {

@@ -8,6 +8,7 @@ on:
       - ".github/workflows/free-pages.yml"
       - "config/config.yaml"
       - "config/frequency_words.txt"
+      - "data/imports/**"
       - "requirements.txt"
       - "scripts/prepare_pages_artifact.py"
       - "trendradar/**"

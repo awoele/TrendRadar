@@ -37,6 +37,27 @@
     return `${snapshot.date || ""} ${snapshot.time || ""}`.trim();
   }
 
+  function itemBadge(item) {
+    if (item.source_type === "search_import") {
+      return "搜索";
+    }
+    return `#${item.rank || "-"}`;
+  }
+
+  function itemMeta(item) {
+    const parts = [];
+    if (item.author) {
+      parts.push(item.author);
+    }
+    if (item.published_at) {
+      parts.push(item.published_at);
+    }
+    if (item.likes) {
+      parts.push(`${item.likes} 赞`);
+    }
+    return parts.join(" · ");
+  }
+
   function renderPlatformControls(platforms) {
     dom.platformSelect.innerHTML = '<option value="">全部平台</option>';
     dom.platformStrip.innerHTML = "";
@@ -84,16 +105,20 @@
       article.className = "content-item";
       const title = escapeHtml(item.title || "未命名内容");
       const url = item.url ? escapeHtml(item.url) : "";
+      const meta = itemMeta(item);
       const titleHtml = url
         ? `<a class="content-title" href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>`
         : `<span class="content-title">${title}</span>`;
 
       article.innerHTML = `
         <div>
-          <span class="content-rank">#${escapeHtml(item.rank || "-")}</span>
+          <span class="content-rank ${item.source_type === "search_import" ? "search" : ""}">${escapeHtml(itemBadge(item))}</span>
           <span class="content-platform">${escapeHtml(item.platform_name || item.platform_id || "未知平台")}</span>
         </div>
-        <div>${titleHtml}</div>
+        <div>
+          ${titleHtml}
+          ${meta ? `<div class="content-detail">${escapeHtml(meta)}</div>` : ""}
+        </div>
         <div class="content-meta">${escapeHtml(item.platform_id || "")}</div>
       `;
       dom.contentList.appendChild(article);

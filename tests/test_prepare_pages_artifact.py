@@ -24,7 +24,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
             (source / "2026-06-20" / "html" / "old.html").write_text("old", encoding="utf-8")
             (source / "2026-06-29" / "txt" / "13-00.txt").write_text("private-ish raw text", encoding="utf-8")
 
-            manifest = prepare_pages_artifact(source, dest, keep_days=7)
+            manifest = prepare_pages_artifact(source, dest, keep_days=7, import_source=root / "missing-imports")
 
             self.assertEqual((dest / "index.html").read_text(encoding="utf-8"), "<html>latest</html>")
             self.assertTrue((dest / "reports" / "2026-06-29" / "当日汇总.html").exists())
@@ -115,7 +115,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            manifest = prepare_pages_artifact(source, dest, keep_days=7)
+            manifest = prepare_pages_artifact(source, dest, keep_days=7, import_source=root / "missing-imports")
 
             stats = json.loads((dest / "stats.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["stats_json"], "stats.json")
@@ -181,7 +181,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            manifest = prepare_pages_artifact(source, dest, keep_days=7)
+            manifest = prepare_pages_artifact(source, dest, keep_days=7, import_source=root / "missing-imports")
 
             content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["content_json"], "content.json")
@@ -193,6 +193,47 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(content["items"][0]["rank"], 1)
             self.assertEqual(content["items"][0]["title"], "AI 工作流实践")
             self.assertEqual(content["items"][0]["url"], "https://sspai.com/post/1")
+
+    def test_merges_imported_douyin_search_content_before_hotlist_items(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            import_source = root / "imports"
+
+            (source / "2026-06-29" / "html").mkdir(parents=True)
+            (source / "2026-06-29" / "txt").mkdir(parents=True)
+            import_source.mkdir()
+
+            (source / "index.html").write_text("<html>latest</html>", encoding="utf-8")
+            (source / "2026-06-29" / "html" / "16-04.html").write_text("<html>report</html>", encoding="utf-8")
+            (source / "2026-06-29" / "txt" / "16-04.txt").write_text(
+                "douyin | 抖音\n1. 普通热榜 [URL:https://www.douyin.com/hot/1]\n",
+                encoding="utf-8",
+            )
+            (import_source / "douyin_vibecoding.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,author,description,published_at,likes,comments,shares",
+                        "douyin,VibeCoding大赏,https://www.douyin.com/video/1,作者,搜索描述,2026-06-15,100,,",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            self.assertEqual(content["total"], 2)
+            self.assertEqual(content["platforms"][0], {"id": "douyin-search", "name": "抖音搜索", "count": 1})
+            self.assertEqual(content["items"][0]["source_type"], "search_import")
+            self.assertEqual(content["items"][0]["platform_id"], "douyin-search")
+            self.assertEqual(content["items"][0]["platform_name"], "抖音搜索")
+            self.assertEqual(content["items"][0]["title"], "VibeCoding大赏")
+            self.assertEqual(content["items"][0]["author"], "作者")
+            self.assertEqual(content["items"][0]["published_at"], "2026-06-15")
+            self.assertEqual(content["items"][0]["likes"], "100")
+            self.assertEqual(content["items"][1]["source_type"], "hotlist")
 
     def test_copies_content_panel_assets_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
