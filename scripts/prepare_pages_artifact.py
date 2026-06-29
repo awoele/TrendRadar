@@ -24,6 +24,29 @@ def _copy_file(source: Path, dest: Path) -> dict:
     }
 
 
+def _write_content_home(dest: Path) -> None:
+    dest.write_text(
+        """<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="0; url=content/">
+    <title>TrendRadar 内容</title>
+    <link rel="canonical" href="content/">
+  </head>
+  <body>
+    <script>
+      window.location.replace("content/");
+    </script>
+    <p><a href="content/">打开内容面板</a></p>
+  </body>
+</html>
+""",
+        encoding="utf-8",
+    )
+
+
 def _clean_html_text(value: str) -> str:
     text = re.sub(r"<[^>]+>", " ", value)
     text = html.unescape(text)
@@ -513,7 +536,7 @@ def prepare_pages_artifact(
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
 
-    _copy_file(source / "index.html", dest / "index.html")
+    _write_content_home(dest / "index.html")
     (dest / ".nojekyll").write_text("", encoding="utf-8")
     config_panel = None
     stats_panel = None

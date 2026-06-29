@@ -7,7 +7,7 @@ from scripts.prepare_pages_artifact import prepare_pages_artifact
 
 
 class PreparePagesArtifactTests(unittest.TestCase):
-    def test_copies_index_recent_html_and_manifest(self):
+    def test_writes_content_home_and_copies_recent_html_to_reports(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "output"
@@ -26,7 +26,10 @@ class PreparePagesArtifactTests(unittest.TestCase):
 
             manifest = prepare_pages_artifact(source, dest, keep_days=7, import_source=root / "missing-imports")
 
-            self.assertEqual((dest / "index.html").read_text(encoding="utf-8"), "<html>latest</html>")
+            home_html = (dest / "index.html").read_text(encoding="utf-8")
+            self.assertIn('url=content/', home_html)
+            self.assertIn('window.location.replace("content/")', home_html)
+            self.assertNotIn("<html>latest</html>", home_html)
             self.assertTrue((dest / "reports" / "2026-06-29" / "当日汇总.html").exists())
             self.assertTrue((dest / "reports" / "2026-06-28" / "13-00.html").exists())
             self.assertFalse((dest / "reports" / "2026-06-20" / "old.html").exists())

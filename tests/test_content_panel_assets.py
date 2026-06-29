@@ -51,6 +51,20 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn("sortItems", app_js)
         self.assertIn(".topic-filters", styles)
 
+    def test_panels_do_not_link_to_legacy_blue_report_home(self):
+        panel_paths = (
+            Path("web/content-panel/index.html"),
+            Path("web/stats-panel/index.html"),
+            Path("web/config-panel/index.html"),
+        )
+
+        for panel_path in panel_paths:
+            with self.subTest(panel=str(panel_path)):
+                html = panel_path.read_text(encoding="utf-8")
+                self.assertNotIn('href="../index.html"', html)
+                self.assertNotIn("打开最新报告", html)
+                self.assertNotIn("查看热榜", html)
+
 
 if __name__ == "__main__":
     unittest.main()
