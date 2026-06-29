@@ -1,76 +1,127 @@
-# === 第1组：社会突发/民生 ===
-# 监控广泛的社会事件和民生政策
-突发
-回应
-辟谣
-# 比如：教育、医疗、就业等
-教育
-医疗
-房价
-就业
-政策
+vibecoding
+VibeCoding
+vibe coding
+Vibe Coding
+氛围编程
+AI编程
+AI 编程
+AI写代码
+AI 写代码
+AI开发
+AI 开发
+AI敲代码
+AI 敲代码
 
-# === 第2组：互联网/科技风向 ===
-# 监控科技圈动态，AIGC是热点
-AI
-人工智能
-AIGC
-大模型
-DeepSeek
-gemini
-deepmind
-chatgpt
-openai
-sora
-claude
-Anthropic
-+发布会
-!广告
-!培训
+Cursor
+Claude Code
+ClaudeCode
+Codex
+OpenAI Codex
+Gemini CLI
+Gemini Code Assist
+Windsurf
+Trae
+Copilot
+Lovable
+Bolt
+Bolt.new
+Replit
+v0
+Manus
+Dify
+Coze
+扣子
+Base44
+Rork
 
-# === 第3组：文娱/流行文化 ===
-# 监控易产生爆款的娱乐话题
-电影
-电视剧
-综艺
-短剧
-动漫
-switch2
-动物森友会
-Epic
-steam
-塌房
-# 可加入您特别关注的明星或剧集
-# 易烊千玺
-# 庆余年
++AI
+做了
+做一个
+做产品
+做网站
+做小程序
+做App
+做 App
+做插件
+上线
+变现
+副业工具
+MVP
+SaaS MVP
+个人网站
+作品集网站
+零代码
+0代码
+不会代码
+不会写代码
+小白做网站
+小白做小程序
 
-# === 第4组：行业黑马/热议 ===
-# 监控商业和行业热点
-# 可替换为您关注的行业或公司
-# 比如：
-华为
-字节
-bytedance
-小米
-谷歌
-google
-微软
-Microsoft
-英伟达
-NVIDIA
-黄仁勋
-AMD
-比亚迪
-特斯拉
++AI
+工作流
+自动化
+自动化脚本
+数据看板
+运营工具
+小红书工作流
+抖音工作流
+agent 工作流
+AI Agent
+智能体
+多Agent
+MCP
+Loop Engineering
+防御性 PRD
+需求文档
+设计系统
 
++AI
+小游戏
+互动应用
+互动故事
+可玩内容
+AI 游戏
+AI做游戏
+AI 做游戏
+AI Game Maker
+AI playable
+playable
+mini app
+interactive TikTok
+UGC 游戏
+memeplay
+nano-game
+remix
 
-# === 第4组：其他资讯/国际 ===
-# 监控商业和行业热点
-中国
-美国
-日本
-月球
-登月
-宇宙
-航空
-神舟
+Aippy
+Sekai
+Rezona
+SeaVerse
+Gizmo
+Rosebud AI
+Replit AI Game Builder
+Fable5
+Fabel5
+fabel5
+豆包
+即梦
+可灵
+Remotion
+Blender
+
++AI
+失败复盘
+踩坑
+避坑
+跑不通
+报错
+维护成本
+安全坑
+过度工程
+提示词
+PRD
+
+[GLOBAL_FILTER]
+土区续费
+赠送的重置机会
+重置机会
