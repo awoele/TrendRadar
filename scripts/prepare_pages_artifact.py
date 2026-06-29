@@ -402,8 +402,31 @@ def _merge_platform_counts(*platform_lists: list) -> list:
     return list(merged.values())
 
 
+def _is_primary_content_platform(platform_id: str) -> bool:
+    return platform_id.startswith("douyin") or platform_id.startswith("xiaohongshu")
+
+
+def _filter_primary_content(content: dict) -> dict:
+    items = [
+        item
+        for item in content.get("items", [])
+        if _is_primary_content_platform(item.get("platform_id") or "")
+    ]
+    platforms = [
+        platform
+        for platform in content.get("platforms", [])
+        if _is_primary_content_platform(platform.get("id") or "")
+    ]
+    return {
+        **content,
+        "total": len(items),
+        "platforms": platforms,
+        "items": items,
+    }
+
+
 def _build_public_content(source: Path, import_source: Path = Path("data/imports")) -> dict:
-    content = _parse_txt_snapshot_content(_latest_txt_snapshot(source))
+    content = _filter_primary_content(_parse_txt_snapshot_content(_latest_txt_snapshot(source)))
     imported = _imported_search_content(Path(import_source))
     content["items"] = imported["items"] + content["items"]
     content["platforms"] = _merge_platform_counts(imported["platforms"], content["platforms"])

@@ -170,12 +170,12 @@ class PreparePagesArtifactTests(unittest.TestCase):
             (source / "2026-06-29" / "txt" / "16-04.txt").write_text(
                 "\n".join(
                     [
-                        "sspai | 少数派",
-                        "1. AI 工作流实践 [URL:https://sspai.com/post/1] [COVER:https://img.example.com/cover.jpg]",
-                        "2. Vibe Coding 游戏开发 [URL:https://sspai.com/post/2]",
+                        "douyin | 抖音",
+                        "1. AI 工作流实践 [URL:https://www.douyin.com/video/1] [COVER:https://img.example.com/cover.jpg]",
+                        "2. Vibe Coding 游戏开发 [URL:https://www.douyin.com/video/2]",
                         "",
-                        "v2ex | V2EX",
-                        "1. Codex 使用体验 [URL:https://www.v2ex.com/t/1]",
+                        "xiaohongshu | 小红书",
+                        "1. Codex 使用体验 [URL:https://www.xiaohongshu.com/explore/1]",
                     ]
                 ),
                 encoding="utf-8",
@@ -187,13 +187,48 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(manifest["content_json"], "content.json")
             self.assertEqual(content["total"], 3)
             self.assertEqual(content["snapshot"]["date"], "2026-06-29")
-            self.assertEqual(content["platforms"][0], {"id": "sspai", "name": "少数派", "count": 2})
-            self.assertEqual(content["items"][0]["platform_id"], "sspai")
-            self.assertEqual(content["items"][0]["platform_name"], "少数派")
+            self.assertEqual(content["platforms"][0], {"id": "douyin", "name": "抖音", "count": 2})
+            self.assertEqual(content["items"][0]["platform_id"], "douyin")
+            self.assertEqual(content["items"][0]["platform_name"], "抖音")
             self.assertEqual(content["items"][0]["rank"], 1)
             self.assertEqual(content["items"][0]["title"], "AI 工作流实践")
-            self.assertEqual(content["items"][0]["url"], "https://sspai.com/post/1")
+            self.assertEqual(content["items"][0]["url"], "https://www.douyin.com/video/1")
             self.assertEqual(content["items"][0]["cover_url"], "https://img.example.com/cover.jpg")
+
+    def test_content_json_keeps_only_douyin_and_xiaohongshu_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+
+            (source / "2026-06-29" / "html").mkdir(parents=True)
+            (source / "2026-06-29" / "txt").mkdir(parents=True)
+
+            (source / "index.html").write_text("<html>latest</html>", encoding="utf-8")
+            (source / "2026-06-29" / "html" / "16-04.html").write_text("<html>report</html>", encoding="utf-8")
+            (source / "2026-06-29" / "txt" / "16-04.txt").write_text(
+                "\n".join(
+                    [
+                        "sspai | 少数派",
+                        "1. AI 工作流实践 [URL:https://sspai.com/post/1]",
+                        "",
+                        "douyin | 抖音",
+                        "1. Vibe Coding 抖音案例 [URL:https://www.douyin.com/video/1]",
+                        "",
+                        "v2ex | V2EX",
+                        "1. Codex 使用体验 [URL:https://www.v2ex.com/t/1]",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, keep_days=7, import_source=root / "missing-imports")
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            self.assertEqual(content["total"], 1)
+            self.assertEqual(content["platforms"], [{"id": "douyin", "name": "抖音", "count": 1}])
+            self.assertEqual(content["items"][0]["platform_id"], "douyin")
+            self.assertEqual(content["items"][0]["title"], "Vibe Coding 抖音案例")
 
     def test_merges_imported_douyin_search_content_before_hotlist_items(self):
         with tempfile.TemporaryDirectory() as tmp:
