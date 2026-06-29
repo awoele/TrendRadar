@@ -145,16 +145,36 @@
     dom.platformStrip.innerHTML = "";
 
     platforms.forEach((platform) => {
+      const active = state.platformId === platform.id;
       const option = document.createElement("option");
       option.value = platform.id;
       option.textContent = `${platform.name} (${platform.count})`;
+      option.selected = active;
       dom.platformSelect.appendChild(option);
 
-      const chip = document.createElement("span");
-      chip.className = "platform-chip";
-      chip.innerHTML = `${escapeHtml(platform.name)} <strong>${formatNumber(platform.count)}</strong>`;
-      dom.platformStrip.appendChild(chip);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `platform-chip${active ? " active" : ""}`;
+      button.setAttribute("data-platform-id", platform.id);
+      button.setAttribute("aria-pressed", String(active));
+      button.innerHTML = `${escapeHtml(platform.name)} <strong>${formatNumber(platform.count)}</strong>`;
+      dom.platformStrip.appendChild(button);
     });
+
+    dom.platformSelect.value = state.platformId;
+  }
+
+  function currentPlatforms() {
+    return Array.isArray(state.content && state.content.platforms)
+      ? state.content.platforms
+      : [];
+  }
+
+  function setPlatformFilter(platformId, shouldToggle = true) {
+    state.platformId = shouldToggle && state.platformId === platformId ? "" : platformId;
+    dom.platformSelect.value = state.platformId;
+    renderPlatformControls(currentPlatforms());
+    renderItems();
   }
 
   function filteredItems() {
@@ -227,8 +247,15 @@
     });
 
     dom.platformSelect.addEventListener("change", () => {
-      state.platformId = dom.platformSelect.value;
-      renderItems();
+      setPlatformFilter(dom.platformSelect.value, false);
+    });
+
+    dom.platformStrip.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-platform-id]");
+      if (!button) {
+        return;
+      }
+      setPlatformFilter(button.getAttribute("data-platform-id") || "");
     });
 
     dom.clearButton.addEventListener("click", () => {
@@ -236,6 +263,7 @@
       state.platformId = "";
       dom.searchInput.value = "";
       dom.platformSelect.value = "";
+      renderPlatformControls(currentPlatforms());
       renderItems();
     });
   }

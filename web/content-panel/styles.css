@@ -185,12 +185,27 @@ select {
 .platform-chip {
   box-shadow: none;
   padding: 8px 10px;
+  min-height: 0;
   color: var(--muted);
   font-size: 13px;
   font-weight: 720;
+  background: #ffffff;
+  cursor: pointer;
 }
 
 .platform-chip strong {
+  color: var(--teal);
+}
+
+.platform-chip:hover,
+.platform-chip:focus-visible {
+  border-color: var(--teal);
+  color: var(--ink);
+}
+
+.platform-chip.active {
+  border-color: var(--teal);
+  background: var(--teal-soft);
   color: var(--teal);
 }
 
@@ -400,7 +415,7 @@ select {
 
   .nav-links,
   .nav-links a,
-  button {
+  #clearButton {
     width: 100%;
   }
 }
