@@ -1,6 +1,17 @@
 name: Free Public Pages
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/free-pages.yml"
+      - "config/config.yaml"
+      - "config/frequency_words.txt"
+      - "requirements.txt"
+      - "scripts/prepare_pages_artifact.py"
+      - "trendradar/**"
+      - "web/config-panel/**"
   schedule:
     # Runs hourly. GitHub schedules are best-effort and may be delayed.
     - cron: "17 * * * *"

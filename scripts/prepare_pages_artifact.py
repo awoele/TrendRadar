@@ -21,9 +21,15 @@ def _copy_file(source: Path, dest: Path) -> dict:
     }
 
 
-def prepare_pages_artifact(source: Path, dest: Path, keep_days: int = 7) -> dict:
+def prepare_pages_artifact(
+    source: Path,
+    dest: Path,
+    keep_days: int = 7,
+    panel_source: Path = Path("web/config-panel"),
+) -> dict:
     source = Path(source)
     dest = Path(dest)
+    panel_source = Path(panel_source)
 
     if not (source / "index.html").exists():
         raise FileNotFoundError(f"Missing public report: {source / 'index.html'}")
@@ -34,6 +40,13 @@ def prepare_pages_artifact(source: Path, dest: Path, keep_days: int = 7) -> dict
 
     _copy_file(source / "index.html", dest / "index.html")
     (dest / ".nojekyll").write_text("", encoding="utf-8")
+    config_panel = None
+
+    if panel_source.exists():
+        panel_dest = dest / "config"
+        shutil.copytree(panel_source, panel_dest, dirs_exist_ok=True)
+        if (panel_dest / "index.html").exists():
+            config_panel = "config/index.html"
 
     dated_dirs = []
     for child in source.iterdir():
@@ -74,6 +87,8 @@ def prepare_pages_artifact(source: Path, dest: Path, keep_days: int = 7) -> dict
         "reports": reports,
         "keep_days": keep_days,
     }
+    if config_panel:
+        manifest["config_panel"] = config_panel
     (dest / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",

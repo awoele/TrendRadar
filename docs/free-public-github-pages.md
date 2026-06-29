@@ -35,6 +35,12 @@ After the first successful run, the public report URL is:
 https://<your-name>.github.io/<repo>/
 ```
 
+The owner-only configuration panel is:
+
+```text
+https://<your-name>.github.io/<repo>/config/
+```
+
 ## Local Publish Helper
 
 Run this after changing platforms or keywords:
@@ -57,12 +63,22 @@ powershell -ExecutionPolicy Bypass -File "D:\Documents\热点库\TrendRadar\loca
 
 ## Updating Public Configuration
 
-Edit these files locally:
+You can use the web configuration panel or edit these files locally:
 
 - `config/config.yaml` for platforms and report mode.
 - `config/frequency_words.txt` for keyword groups.
 
-Then commit and push the changes. The hourly `Free Public Pages` workflow will publish the next report automatically. You can also run the workflow manually from GitHub Actions.
+The panel is published as a static GitHub Pages page, so it does not contain a server-side login system. It stays owner-only by requiring a GitHub token that has write access to this repository before it can load or save configuration.
+
+Recommended fine-grained token permissions:
+
+- Repository: `awoele/TrendRadar`
+- Contents: `Read and write`
+- Actions: `Read and write`
+
+Saving from the panel commits changes to `master`. The `Free Public Pages` workflow runs on those config pushes and publishes the next report automatically. The panel also attempts to trigger the workflow immediately after saving.
+
+Do not paste webhook URLs, email passwords, Telegram tokens, or other secrets into the public config files. Put secrets in GitHub repository secrets instead.
 
 ## Optional Notifications
 

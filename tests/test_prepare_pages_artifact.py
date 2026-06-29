@@ -37,6 +37,31 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(len(manifest_data["reports"]), 2)
             self.assertEqual(manifest, manifest_data)
 
+    def test_copies_config_panel_assets_when_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            panel_source = root / "web" / "config-panel"
+
+            source.mkdir()
+            panel_source.mkdir(parents=True)
+
+            (source / "index.html").write_text("<html>latest</html>", encoding="utf-8")
+            (panel_source / "index.html").write_text("<html>config</html>", encoding="utf-8")
+            (panel_source / "app.js").write_text("console.log('config')", encoding="utf-8")
+
+            manifest = prepare_pages_artifact(
+                source,
+                dest,
+                keep_days=7,
+                panel_source=panel_source,
+            )
+
+            self.assertEqual((dest / "config" / "index.html").read_text(encoding="utf-8"), "<html>config</html>")
+            self.assertEqual((dest / "config" / "app.js").read_text(encoding="utf-8"), "console.log('config')")
+            self.assertEqual(manifest["config_panel"], "config/index.html")
+
 
 if __name__ == "__main__":
     unittest.main()
