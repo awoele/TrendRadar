@@ -17,6 +17,17 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn(".platform-chip.active", styles)
         self.assertIn("aria-pressed", Path("web/content-panel/app.js").read_text(encoding="utf-8"))
 
+    def test_topic_metadata_renders_as_card_tags(self):
+        app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
+        styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("topicTags", app_js)
+        self.assertIn("case_type", app_js)
+        self.assertIn("tool_stack", app_js)
+        self.assertIn("hook", app_js)
+        self.assertIn("content-tags", app_js)
+        self.assertIn(".content-tags", styles)
+
 
 if __name__ == "__main__":
     unittest.main()

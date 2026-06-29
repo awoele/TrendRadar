@@ -237,6 +237,65 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(content["items"][0]["cover_url"], "https://img.example.com/douyin.jpg")
             self.assertEqual(content["items"][1]["source_type"], "hotlist")
 
+    def test_merges_topic_radar_imports_with_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            import_source = root / "imports"
+
+            (source / "2026-06-29" / "html").mkdir(parents=True)
+            (source / "2026-06-29" / "txt").mkdir(parents=True)
+            import_source.mkdir()
+
+            (source / "index.html").write_text("<html>latest</html>", encoding="utf-8")
+            (source / "2026-06-29" / "html" / "16-04.html").write_text("<html>report</html>", encoding="utf-8")
+            (source / "2026-06-29" / "txt" / "16-04.txt").write_text(
+                "douyin | 抖音\n1. 普通热榜 [URL:https://www.douyin.com/hot/1]\n",
+                encoding="utf-8",
+            )
+            (import_source / "00_vibecoding_case_radar.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,cover_url,author,published_at,like_count,comment_count,collect_count,share_count,hot_score,recent_hot_score,case_type,built_thing,tool_stack,target_audience,hook,content_value,risk_flag,description",
+                        "douyin,AI 做作品集,https://www.douyin.com/video/1,https://img.example.com/douyin.jpg,作者,2026-06-15,100,2,3,4,900,450,真案例,网站、创意实验,Codex,设计师,几小时上线,有结果,平台活动内容,搜索描述",
+                        "xiaohongshu,Codex 工作流,https://www.xiaohongshu.com/explore/1,https://img.example.com/xhs.jpg,博主,2026-06-14,80,1,2,3,700,300,教程,自动化流程,Codex,运营,完整流程,可复制,,小红书描述",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            self.assertEqual(content["total"], 3)
+            self.assertEqual(content["platforms"][0], {"id": "douyin-topic", "name": "抖音选题", "count": 1})
+            self.assertEqual(content["platforms"][1], {"id": "xiaohongshu-topic", "name": "小红书选题", "count": 1})
+            self.assertEqual(content["imports"]["total"], 2)
+
+            douyin_item = content["items"][0]
+            self.assertEqual(douyin_item["source_type"], "topic_import")
+            self.assertEqual(douyin_item["platform_id"], "douyin-topic")
+            self.assertEqual(douyin_item["platform_name"], "抖音选题")
+            self.assertEqual(douyin_item["likes"], "100")
+            self.assertEqual(douyin_item["comments"], "2")
+            self.assertEqual(douyin_item["collects"], "3")
+            self.assertEqual(douyin_item["shares"], "4")
+            self.assertEqual(douyin_item["case_type"], "真案例")
+            self.assertEqual(douyin_item["built_thing"], "网站、创意实验")
+            self.assertEqual(douyin_item["tool_stack"], "Codex")
+            self.assertEqual(douyin_item["target_audience"], "设计师")
+            self.assertEqual(douyin_item["hook"], "几小时上线")
+            self.assertEqual(douyin_item["content_value"], "有结果")
+            self.assertEqual(douyin_item["risk_flag"], "平台活动内容")
+            self.assertEqual(douyin_item["hot_score"], "900")
+            self.assertEqual(douyin_item["recent_hot_score"], "450")
+
+            xhs_item = content["items"][1]
+            self.assertEqual(xhs_item["platform_id"], "xiaohongshu-topic")
+            self.assertEqual(xhs_item["platform_name"], "小红书选题")
+            self.assertEqual(xhs_item["cover_url"], "https://img.example.com/xhs.jpg")
+
     def test_copies_content_panel_assets_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

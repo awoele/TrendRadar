@@ -334,6 +334,10 @@ select {
   background: var(--teal);
 }
 
+.content-rank.topic {
+  background: var(--blue);
+}
+
 .content-platform {
   min-width: 0;
   color: var(--muted);
@@ -366,6 +370,35 @@ select {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.4;
+}
+
+.content-score {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.content-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 58px;
+  overflow: hidden;
+}
+
+.content-tags span {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 760;
+  overflow-wrap: anywhere;
 }
 
 .content-snippet {

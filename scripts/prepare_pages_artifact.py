@@ -38,6 +38,35 @@ def _first_nonempty(row: dict, field_names: tuple) -> str:
     return ""
 
 
+def _import_platform(platform: str, is_topic_import: bool) -> tuple:
+    platform_names = {
+        "douyin": "抖音",
+        "xiaohongshu": "小红书",
+    }
+    base_name = platform_names.get(platform, platform)
+    suffix = "topic" if is_topic_import else "search"
+    suffix_name = "选题" if is_topic_import else "搜索"
+    return f"{platform}-{suffix}", f"{base_name}{suffix_name}"
+
+
+def _is_topic_import(row: dict) -> bool:
+    return any(
+        (row.get(field_name) or "").strip()
+        for field_name in (
+            "case_type",
+            "built_thing",
+            "tool_stack",
+            "target_audience",
+            "hook",
+            "content_value",
+            "risk_flag",
+            "hot_score",
+            "recent_hot_score",
+            "category_label",
+        )
+    )
+
+
 def _parse_item_payload(value: str) -> tuple:
     fields = {}
 
@@ -266,7 +295,7 @@ def _imported_search_content(import_source: Path) -> dict:
         with csv_file.open("r", encoding="utf-8-sig", newline="") as handle:
             for row in csv.DictReader(handle):
                 platform = (row.get("platform") or "").strip().lower()
-                if platform != "douyin":
+                if platform not in {"douyin", "xiaohongshu"}:
                     continue
 
                 title = (row.get("title") or "").strip()
@@ -275,12 +304,13 @@ def _imported_search_content(import_source: Path) -> dict:
                     continue
                 seen_urls.add(url)
 
-                platform_id = "douyin-search"
+                is_topic_import = _is_topic_import(row)
+                platform_id, platform_name = _import_platform(platform, is_topic_import)
                 platforms.setdefault(
                     platform_id,
                     {
                         "id": platform_id,
-                        "name": "抖音搜索",
+                        "name": platform_name,
                         "count": 0,
                     },
                 )
@@ -288,7 +318,7 @@ def _imported_search_content(import_source: Path) -> dict:
                 items.append(
                     {
                         "platform_id": platform_id,
-                        "platform_name": "抖音搜索",
+                        "platform_name": platform_name,
                         "rank": None,
                         "title": title,
                         "url": url,
@@ -305,13 +335,24 @@ def _imported_search_content(import_source: Path) -> dict:
                                 "poster",
                             ),
                         ),
-                        "source_type": "search_import",
+                        "source_type": "topic_import" if is_topic_import else "search_import",
                         "author": (row.get("author") or "").strip(),
                         "description": (row.get("description") or "").strip(),
                         "published_at": (row.get("published_at") or "").strip(),
-                        "likes": (row.get("likes") or "").strip(),
-                        "comments": (row.get("comments") or "").strip(),
-                        "shares": (row.get("shares") or "").strip(),
+                        "likes": _first_nonempty(row, ("likes", "like_count")),
+                        "comments": _first_nonempty(row, ("comments", "comment_count")),
+                        "collects": _first_nonempty(row, ("collects", "collect_count")),
+                        "shares": _first_nonempty(row, ("shares", "share_count")),
+                        "case_type": (row.get("case_type") or "").strip(),
+                        "built_thing": (row.get("built_thing") or "").strip(),
+                        "tool_stack": (row.get("tool_stack") or row.get("tools") or "").strip(),
+                        "target_audience": (row.get("target_audience") or row.get("audience") or "").strip(),
+                        "hook": (row.get("hook") or "").strip(),
+                        "content_value": (row.get("content_value") or "").strip(),
+                        "risk_flag": (row.get("risk_flag") or "").strip(),
+                        "category_label": (row.get("category_label") or "").strip(),
+                        "hot_score": (row.get("hot_score") or "").strip(),
+                        "recent_hot_score": (row.get("recent_hot_score") or "").strip(),
                     }
                 )
 

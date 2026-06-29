@@ -86,6 +86,9 @@
   }
 
   function itemBadge(item) {
+    if (item.source_type === "topic_import") {
+      return "选题";
+    }
     if (item.source_type === "search_import") {
       return "搜索";
     }
@@ -112,6 +115,55 @@
       return "";
     }
     return text.length > 96 ? `${text.slice(0, 96)}...` : text;
+  }
+
+  function splitTopicValue(value) {
+    return String(value || "")
+      .split(/[、,，;；|]/)
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+
+  function topicTags(item) {
+    const tags = [];
+    [
+      item.case_type,
+      item.built_thing,
+      item.tool_stack,
+      item.hook,
+      item.content_value,
+      item.risk_flag
+    ].forEach((value) => {
+      splitTopicValue(value).forEach((tag) => {
+        if (!tags.includes(tag)) {
+          tags.push(tag);
+        }
+      });
+    });
+    return tags.slice(0, 8);
+  }
+
+  function renderTopicTags(item) {
+    const tags = topicTags(item);
+    if (!tags.length) {
+      return "";
+    }
+    return `
+      <div class="content-tags">
+        ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+      </div>
+    `;
+  }
+
+  function topicScore(item) {
+    const parts = [];
+    if (item.hot_score) {
+      parts.push(`热度 ${item.hot_score}`);
+    }
+    if (item.recent_hot_score) {
+      parts.push(`近期 ${item.recent_hot_score}`);
+    }
+    return parts.join(" · ");
   }
 
   function coverTitle(item) {
@@ -191,6 +243,12 @@
         item.title,
         item.platform_name,
         item.platform_id,
+        item.case_type,
+        item.built_thing,
+        item.tool_stack,
+        item.hook,
+        item.content_value,
+        item.category_label,
         item.url
       ].some((value) => String(value || "").toLowerCase().includes(query));
     });
@@ -209,6 +267,8 @@
       const url = safeExternalUrl(item.url);
       const meta = itemMeta(item);
       const snippet = contentSnippet(item);
+      const tagsHtml = renderTopicTags(item);
+      const score = topicScore(item);
       const titleHtml = url
         ? `<a class="content-title" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${title}</a>`
         : `<span class="content-title">${title}</span>`;
@@ -217,11 +277,13 @@
         ${renderCover(item, url)}
         <div class="content-body">
           <div class="content-row">
-            <span class="content-rank ${item.source_type === "search_import" ? "search" : ""}">${escapeHtml(itemBadge(item))}</span>
+            <span class="content-rank ${item.source_type === "search_import" ? "search" : ""} ${item.source_type === "topic_import" ? "topic" : ""}">${escapeHtml(itemBadge(item))}</span>
             <span class="content-platform">${escapeHtml(item.platform_name || item.platform_id || "未知平台")}</span>
           </div>
           ${titleHtml}
           ${meta ? `<div class="content-detail">${escapeHtml(meta)}</div>` : ""}
+          ${score ? `<div class="content-score">${escapeHtml(score)}</div>` : ""}
+          ${tagsHtml}
           ${snippet ? `<p class="content-snippet">${escapeHtml(snippet)}</p>` : ""}
           <div class="content-meta">${escapeHtml(item.platform_id || "")}</div>
         </div>
