@@ -204,6 +204,54 @@ class RedfoxImportDataTests(unittest.TestCase):
         titles = {row["title"] for row in rows}
         self.assertFalse(blocked_titles & titles)
 
+    def test_redfox_halfmonth_import_excludes_brand_lifestyle_and_design_noise(self):
+        path = Path("data/imports/01_redfox_xhs_vibecoding_2026-06-15_2026-06-29.csv")
+
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+
+        blocked_titles = {
+            "角色故事板+导演台，让AI视频抽卡效率拉满",
+            "6大字体提示词分享🔥howto早下班2小时❗️",
+            "用 AI 修壁画做纹样造紫砂壶，大学生真敢想",
+            "右滑一下，清爽版支付宝来了！",
+            "《鸿蒙脑洞大开麦》看完我愣了很久",
+            "第一批觉醒的家长，早已让孩子主动驾驭AI了",
+            "APP 独家限免，先到先得",
+            "鸿蒙真的“不够年轻”吗 我在HDC看到了另一面",
+            "一张 3090 Ti，入选 SIGGRAPH 2026！",
+            "外贸找工作先混进去再学！",
+            "盲人女孩北漂14年：剪视频做运营，独立自由",
+            "安利一款AI神器！打工牛马秒变自动化大神！",
+            "一个合格设计师的设计工具都有哪些",
+        }
+        titles = {row["title"] for row in rows}
+        self.assertFalse(blocked_titles & titles)
+
+        blocked_fragments = (
+            ("grok", "成人内容生成"),
+            ("ai视频", "抽卡"),
+            ("hdc2026", "鸿蒙"),
+            ("支付宝", "邀测"),
+            ("外贸实习", "投简历"),
+            ("ui/ux 设计师工具学习指南", "figma 是海内外通用标准"),
+        )
+        leaked = []
+        for row in rows:
+            text = " ".join(
+                [
+                    row.get("title", ""),
+                    row.get("description", ""),
+                    row.get("built_thing", ""),
+                    row.get("tool_stack", ""),
+                ]
+            ).lower()
+            for fragments in blocked_fragments:
+                if all(fragment.lower() in text for fragment in fragments):
+                    leaked.append(row["title"] or row.get("url", ""))
+
+        self.assertEqual(leaked, [])
+
 
 if __name__ == "__main__":
     unittest.main()
