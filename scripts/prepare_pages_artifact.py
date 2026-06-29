@@ -30,6 +30,25 @@ def _clean_html_text(value: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _first_nonempty(row: dict, field_names: tuple) -> str:
+    for field_name in field_names:
+        value = (row.get(field_name) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _parse_item_payload(value: str) -> tuple:
+    fields = {}
+
+    def collect(match: re.Match) -> str:
+        fields[match.group(1).lower()] = match.group(2).strip()
+        return ""
+
+    title = re.sub(r"\s+\[([A-Z_]+):(.*?)\]", collect, value).strip()
+    return title, fields
+
+
 def _parse_metric(html_text: str, label: str):
     expression = re.compile(
         rf'<span\s+class="info-label">\s*{re.escape(label)}\s*</span>\s*'
@@ -186,7 +205,7 @@ def _parse_txt_snapshot_content(txt_path: Path) -> dict:
     items = []
     current = None
     header_expression = re.compile(r"^([A-Za-z0-9._-]+)\s*\|\s*(.+)$")
-    item_expression = re.compile(r"^(\d+)\.\s+(.*?)(?:\s+\[URL:(.*?)\])?$")
+    item_expression = re.compile(r"^(\d+)\.\s+(.*)$")
 
     for raw_line in txt_path.read_text(encoding="utf-8", errors="ignore").splitlines():
         line = raw_line.strip()
@@ -204,8 +223,9 @@ def _parse_txt_snapshot_content(txt_path: Path) -> dict:
 
         item = item_expression.match(line)
         if current and item:
-            title = item.group(2).strip()
-            url = (item.group(3) or "").strip()
+            title, fields = _parse_item_payload(item.group(2).strip())
+            url = fields.get("url", "")
+            cover_url = fields.get("cover", "")
             current["count"] += 1
             items.append(
                 {
@@ -214,6 +234,7 @@ def _parse_txt_snapshot_content(txt_path: Path) -> dict:
                     "rank": int(item.group(1)),
                     "title": title,
                     "url": url,
+                    "cover_url": cover_url,
                     "source_type": "hotlist",
                 }
             )
@@ -271,6 +292,19 @@ def _imported_search_content(import_source: Path) -> dict:
                         "rank": None,
                         "title": title,
                         "url": url,
+                        "cover_url": _first_nonempty(
+                            row,
+                            (
+                                "cover_url",
+                                "cover",
+                                "image_url",
+                                "image",
+                                "thumbnail_url",
+                                "thumbnail",
+                                "poster_url",
+                                "poster",
+                            ),
+                        ),
                         "source_type": "search_import",
                         "author": (row.get("author") or "").strip(),
                         "description": (row.get("description") or "").strip(),

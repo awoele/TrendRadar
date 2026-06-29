@@ -47,6 +47,37 @@ class DataFetcher:
         self.proxy_url = proxy_url
         self.api_url = api_url or self.DEFAULT_API_URL
 
+    @staticmethod
+    def _extract_cover_url(item: Dict) -> str:
+        candidates = (
+            "coverUrl",
+            "cover_url",
+            "cover",
+            "imageUrl",
+            "image_url",
+            "image",
+            "thumbnailUrl",
+            "thumbnail_url",
+            "thumbnail",
+            "posterUrl",
+            "poster_url",
+            "poster",
+            "icon",
+        )
+        for key in candidates:
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+        extra = item.get("extra")
+        if isinstance(extra, dict):
+            for key in candidates:
+                value = extra.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+
+        return ""
+
     def fetch_data(
         self,
         id_info: Union[str, Tuple[str, str]],
@@ -156,14 +187,18 @@ class DataFetcher:
                         title = str(title).strip()
                         url = item.get("url", "")
                         mobile_url = item.get("mobileUrl", "")
+                        cover_url = self._extract_cover_url(item)
 
                         if title in results[id_value]:
                             results[id_value][title]["ranks"].append(index)
+                            if cover_url and not results[id_value][title].get("coverUrl"):
+                                results[id_value][title]["coverUrl"] = cover_url
                         else:
                             results[id_value][title] = {
                                 "ranks": [index],
                                 "url": url,
                                 "mobileUrl": mobile_url,
+                                "coverUrl": cover_url,
                             }
                 except json.JSONDecodeError:
                     print(f"解析 {id_value} 响应失败")

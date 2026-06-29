@@ -171,7 +171,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
                 "\n".join(
                     [
                         "sspai | 少数派",
-                        "1. AI 工作流实践 [URL:https://sspai.com/post/1]",
+                        "1. AI 工作流实践 [URL:https://sspai.com/post/1] [COVER:https://img.example.com/cover.jpg]",
                         "2. Vibe Coding 游戏开发 [URL:https://sspai.com/post/2]",
                         "",
                         "v2ex | V2EX",
@@ -193,6 +193,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(content["items"][0]["rank"], 1)
             self.assertEqual(content["items"][0]["title"], "AI 工作流实践")
             self.assertEqual(content["items"][0]["url"], "https://sspai.com/post/1")
+            self.assertEqual(content["items"][0]["cover_url"], "https://img.example.com/cover.jpg")
 
     def test_merges_imported_douyin_search_content_before_hotlist_items(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -214,8 +215,8 @@ class PreparePagesArtifactTests(unittest.TestCase):
             (import_source / "douyin_vibecoding.csv").write_text(
                 "\n".join(
                     [
-                        "platform,title,url,author,description,published_at,likes,comments,shares",
-                        "douyin,VibeCoding大赏,https://www.douyin.com/video/1,作者,搜索描述,2026-06-15,100,,",
+                        "platform,title,url,author,description,published_at,likes,comments,shares,cover_url",
+                        "douyin,VibeCoding大赏,https://www.douyin.com/video/1,作者,搜索描述,2026-06-15,100,,,https://img.example.com/douyin.jpg",
                     ]
                 ),
                 encoding="utf-8",
@@ -233,6 +234,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(content["items"][0]["author"], "作者")
             self.assertEqual(content["items"][0]["published_at"], "2026-06-15")
             self.assertEqual(content["items"][0]["likes"], "100")
+            self.assertEqual(content["items"][0]["cover_url"], "https://img.example.com/douyin.jpg")
             self.assertEqual(content["items"][1]["source_type"], "hotlist")
 
     def test_copies_content_panel_assets_when_present(self):

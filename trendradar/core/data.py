@@ -54,23 +54,27 @@ def save_titles_to_file(
                     ranks = info.get("ranks", [])
                     url = info.get("url", "")
                     mobile_url = info.get("mobileUrl", "")
+                    cover_url = info.get("coverUrl", "")
                 else:
                     ranks = info if isinstance(info, list) else []
                     url = ""
                     mobile_url = ""
+                    cover_url = ""
 
                 rank = ranks[0] if ranks else 1
-                sorted_titles.append((rank, cleaned_title, url, mobile_url))
+                sorted_titles.append((rank, cleaned_title, url, mobile_url, cover_url))
 
             sorted_titles.sort(key=lambda x: x[0])
 
-            for rank, cleaned_title, url, mobile_url in sorted_titles:
+            for rank, cleaned_title, url, mobile_url, cover_url in sorted_titles:
                 line = f"{rank}. {cleaned_title}"
 
                 if url:
                     line += f" [URL:{url}]"
                 if mobile_url:
                     line += f" [MOBILE:{mobile_url}]"
+                if cover_url:
+                    line += f" [COVER:{cover_url}]"
                 f.write(line + "\n")
 
             f.write("\n")
