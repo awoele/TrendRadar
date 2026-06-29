@@ -198,6 +198,8 @@ class RedfoxImportDataTests(unittest.TestCase):
             "6月17日美股收益早报",
             "SpaceX宣布600亿收购Cursor、周二期权来袭",
             "GPT-5.6要上了？",
+            "大学电脑怎么选⁉️华硕 a 豆/无畏轻薄本合集",
+            "💻 四年不换的全能本，大一新生开学答案 📚",
         }
         titles = {row["title"] for row in rows}
         self.assertFalse(blocked_titles & titles)
