@@ -46,6 +46,88 @@ RAW_FIELDS = [
     "interactive_count",
 ]
 
+STRICT_VIBE_TERMS = (
+    "vibecoding",
+    "vibe coding",
+    "vibe code",
+    "氛围编程",
+    "codex",
+    "cursor",
+    "claude code",
+    "ai coding",
+    "ai编程",
+    "ai 编程",
+    "ai写代码",
+    "ai 写代码",
+    "零代码",
+    "不会代码",
+    "写代码",
+    "代码",
+    "编程",
+    "开发",
+    "上线",
+    "网站",
+    "网页",
+    "小程序",
+    "app",
+    "应用",
+    "插件",
+    "软件",
+    "系统",
+    "产品",
+    "saas",
+    "mvp",
+    "agent",
+    "智能体",
+    "工作流",
+    "自动化",
+    "mcp",
+    "dify",
+    "coze",
+    "扣子",
+    "n8n",
+    "github",
+    "api",
+    "独立开发",
+)
+
+GENERIC_AI_CREATIVE_TERMS = (
+    "插画",
+    "画图",
+    "生图",
+    "照片转",
+    "动态海报",
+    "海报教程",
+    "纹样",
+    "紫砂壶",
+)
+
+GENERIC_ONLY_BUILT_THINGS = (
+    "内容/创作",
+    "设计系统/视觉",
+    "3D建模/渲染",
+    "创意实验/好玩项目",
+)
+
+OFF_TOPIC_PATTERNS = (
+    ("bw", "抢票"),
+    ("bw", "买票"),
+    ("bilibiliworld", "抢票"),
+    ("护照", "买票"),
+    ("spacex", "华尔街"),
+    ("spacex", "美股"),
+    ("spacex", "期权"),
+    ("spacex", "收购"),
+    ("美股", "收益早报"),
+    ("纳指", "标普"),
+    ("股票", "收购"),
+    ("投资理财", "期权"),
+    ("gpt-5.6", "没啥根据"),
+    ("gpt-5.6", "爆料"),
+    ("gpt-5.6", "真假未知"),
+    ("gpt-5.6", "要上了"),
+)
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -332,12 +414,55 @@ def write_enriched_import_csv(source: Path, dest: Path, raw_csv: Path) -> None:
                     row[target] = raw[raw_key]
             if raw.get("source") and (not row.get("source") or row["source"].startswith("csv:")):
                 row["source"] = raw["source"]
+            if not is_strict_vibecoding_topic(row):
+                continue
             rows.append(row)
 
     with dest.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def is_strict_vibecoding_topic(row: dict) -> bool:
+    raw_text = " ".join(
+        [
+            row.get("title", ""),
+            row.get("description", ""),
+            row.get("tool_stack", ""),
+        ]
+    ).lower()
+    label_text = " ".join(
+        [
+            row.get("built_thing", ""),
+            row.get("category_label", ""),
+        ]
+    ).lower()
+    built_thing = row.get("built_thing", "")
+
+    has_strong_text_signal = any(term.lower() in raw_text for term in STRICT_VIBE_TERMS)
+    has_generic_creative_signal = any(
+        term.lower() in raw_text or term.lower() in label_text
+        for term in GENERIC_AI_CREATIVE_TERMS
+    )
+    has_only_generic_built_signal = bool(built_thing) and all(
+        term in GENERIC_ONLY_BUILT_THINGS
+        for term in [item.strip() for item in built_thing.split("、") if item.strip()]
+    )
+
+    if not has_strong_text_signal:
+        return False
+    if is_off_topic_noise(raw_text):
+        return False
+    if has_generic_creative_signal and not has_strong_text_signal:
+        return False
+    if has_generic_creative_signal and has_only_generic_built_signal:
+        return False
+    return True
+
+
+def is_off_topic_noise(text: str) -> bool:
+    return any(all(term in text for term in terms) for terms in OFF_TOPIC_PATTERNS)
 
 
 def count_csv_rows(path: Path) -> int:
