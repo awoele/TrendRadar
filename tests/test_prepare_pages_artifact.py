@@ -159,7 +159,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual((dest / "stats" / "app.js").read_text(encoding="utf-8"), "console.log('stats')")
             self.assertEqual(manifest["stats_panel"], "stats/index.html")
 
-    def test_generates_content_json_from_latest_txt_snapshot(self):
+    def test_content_json_excludes_plain_hotlist_snapshot_items(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "output"
@@ -188,17 +188,12 @@ class PreparePagesArtifactTests(unittest.TestCase):
 
             content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["content_json"], "content.json")
-            self.assertEqual(content["total"], 3)
+            self.assertEqual(content["total"], 0)
             self.assertEqual(content["snapshot"]["date"], "2026-06-29")
-            self.assertEqual(content["platforms"][0], {"id": "douyin", "name": "抖音", "count": 2})
-            self.assertEqual(content["items"][0]["platform_id"], "douyin")
-            self.assertEqual(content["items"][0]["platform_name"], "抖音")
-            self.assertEqual(content["items"][0]["rank"], 1)
-            self.assertEqual(content["items"][0]["title"], "AI 工作流实践")
-            self.assertEqual(content["items"][0]["url"], "https://www.douyin.com/video/1")
-            self.assertEqual(content["items"][0]["cover_url"], "https://img.example.com/cover.jpg")
+            self.assertEqual(content["platforms"], [])
+            self.assertEqual(content["items"], [])
 
-    def test_content_json_keeps_only_douyin_and_xiaohongshu_sources(self):
+    def test_content_json_keeps_only_imported_sources(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "output"
@@ -228,10 +223,9 @@ class PreparePagesArtifactTests(unittest.TestCase):
             prepare_pages_artifact(source, dest, keep_days=7, import_source=root / "missing-imports")
 
             content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
-            self.assertEqual(content["total"], 1)
-            self.assertEqual(content["platforms"], [{"id": "douyin", "name": "抖音", "count": 1}])
-            self.assertEqual(content["items"][0]["platform_id"], "douyin")
-            self.assertEqual(content["items"][0]["title"], "Vibe Coding 抖音案例")
+            self.assertEqual(content["total"], 0)
+            self.assertEqual(content["platforms"], [])
+            self.assertEqual(content["items"], [])
 
     def test_merges_imported_douyin_search_content_before_hotlist_items(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -263,7 +257,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
             prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
 
             content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
-            self.assertEqual(content["total"], 2)
+            self.assertEqual(content["total"], 1)
             self.assertEqual(content["platforms"][0], {"id": "douyin-search", "name": "抖音搜索", "count": 1})
             self.assertEqual(content["items"][0]["source_type"], "search_import")
             self.assertEqual(content["items"][0]["platform_id"], "douyin-search")
@@ -273,7 +267,6 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(content["items"][0]["published_at"], "2026-06-15")
             self.assertEqual(content["items"][0]["likes"], "100")
             self.assertEqual(content["items"][0]["cover_url"], "https://img.example.com/douyin.jpg")
-            self.assertEqual(content["items"][1]["source_type"], "hotlist")
 
     def test_merges_topic_radar_imports_with_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -306,7 +299,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
             prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
 
             content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
-            self.assertEqual(content["total"], 3)
+            self.assertEqual(content["total"], 2)
             self.assertEqual(content["platforms"][0], {"id": "douyin-topic", "name": "抖音选题", "count": 1})
             self.assertEqual(content["platforms"][1], {"id": "xiaohongshu-topic", "name": "小红书选题", "count": 1})
             self.assertEqual(content["imports"]["total"], 2)

@@ -426,7 +426,12 @@ def _merge_platform_counts(*platform_lists: list) -> list:
 
 
 def _is_primary_content_platform(platform_id: str) -> bool:
-    return platform_id.startswith("douyin") or platform_id.startswith("xiaohongshu")
+    return platform_id in {
+        "douyin-topic",
+        "xiaohongshu-topic",
+        "douyin-search",
+        "xiaohongshu-search",
+    }
 
 
 def _filter_primary_content(content: dict) -> dict:
