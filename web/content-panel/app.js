@@ -5,6 +5,13 @@
     visibleCount: document.getElementById("visibleCount"),
     searchInput: document.getElementById("searchInput"),
     platformSelect: document.getElementById("platformSelect"),
+    caseTypeSelect: document.getElementById("caseTypeSelect"),
+    builtThingSelect: document.getElementById("builtThingSelect"),
+    toolStackSelect: document.getElementById("toolStackSelect"),
+    hookSelect: document.getElementById("hookSelect"),
+    contentValueSelect: document.getElementById("contentValueSelect"),
+    riskFlagSelect: document.getElementById("riskFlagSelect"),
+    sortSelect: document.getElementById("sortSelect"),
     clearButton: document.getElementById("clearButton"),
     platformStrip: document.getElementById("platformStrip"),
     contentList: document.getElementById("contentList"),
@@ -14,8 +21,26 @@
   const state = {
     content: null,
     query: "",
-    platformId: ""
+    platformId: "",
+    sortBy: "default",
+    topicFilters: {
+      caseType: "",
+      builtThing: "",
+      toolStack: "",
+      hook: "",
+      contentValue: "",
+      riskFlag: ""
+    }
   };
+
+  const topicFilterFields = [
+    { stateKey: "caseType", itemKey: "case_type", selectKey: "caseTypeSelect", label: "全部类型", split: false },
+    { stateKey: "builtThing", itemKey: "built_thing", selectKey: "builtThingSelect", label: "全部方向", split: true },
+    { stateKey: "toolStack", itemKey: "tool_stack", selectKey: "toolStackSelect", label: "全部工具", split: true },
+    { stateKey: "hook", itemKey: "hook", selectKey: "hookSelect", label: "全部爆点", split: true },
+    { stateKey: "contentValue", itemKey: "content_value", selectKey: "contentValueSelect", label: "全部价值", split: true },
+    { stateKey: "riskFlag", itemKey: "risk_flag", selectKey: "riskFlagSelect", label: "全部风险", split: true }
+  ];
 
   const COVER_PALETTES = [
     ["#0f766e", "#2563eb"],
@@ -122,6 +147,92 @@
       .split(/[、,，;；|]/)
       .map((tag) => tag.trim())
       .filter(Boolean);
+  }
+
+  function topicValues(item, key, shouldSplit) {
+    const value = item[key];
+    if (shouldSplit) {
+      return splitTopicValue(value);
+    }
+    const text = String(value || "").trim();
+    return text ? [text] : [];
+  }
+
+  function countTopicValues(items, field) {
+    const counts = new Map();
+    items.forEach((item) => {
+      topicValues(item, field.itemKey, field.split).forEach((value) => {
+        counts.set(value, (counts.get(value) || 0) + 1);
+      });
+    });
+    return Array.from(counts, ([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "zh-CN"))
+      .map((entry) => entry.value);
+  }
+
+  function populateSelect(select, label, values, selectedValue) {
+    select.innerHTML = "";
+
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = label;
+    select.appendChild(emptyOption);
+
+    values.forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value;
+      option.selected = value === selectedValue;
+      select.appendChild(option);
+    });
+
+    select.value = selectedValue || "";
+  }
+
+  function populateTopicFilters(items) {
+    topicFilterFields.forEach((field) => {
+      populateSelect(
+        dom[field.selectKey],
+        field.label,
+        countTopicValues(items, field),
+        state.topicFilters[field.stateKey]
+      );
+    });
+    dom.sortSelect.value = state.sortBy;
+  }
+
+  function matchesTopicFilter(item, field) {
+    const selected = state.topicFilters[field.stateKey];
+    if (!selected) {
+      return true;
+    }
+    return topicValues(item, field.itemKey, field.split).includes(selected);
+  }
+
+  function numericValue(value) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return 0;
+    }
+    const match = text.match(/-?\d+(?:\.\d+)?/);
+    const number = match ? Number(match[0]) : 0;
+    if (text.includes("万")) {
+      return number * 10000;
+    }
+    return number;
+  }
+
+  function sortItems(items) {
+    if (state.sortBy === "default") {
+      return items;
+    }
+
+    return items.slice().sort((a, b) => {
+      if (state.sortBy === "published_at") {
+        return String(b.published_at || "").localeCompare(String(a.published_at || ""));
+      }
+      return numericValue(b[state.sortBy]) - numericValue(a[state.sortBy]);
+    });
   }
 
   function topicTags(item) {
@@ -232,8 +343,11 @@
   function filteredItems() {
     const content = state.content || { items: [] };
     const query = state.query.trim().toLowerCase();
-    return content.items.filter((item) => {
+    const filtered = content.items.filter((item) => {
       if (state.platformId && item.platform_id !== state.platformId) {
+        return false;
+      }
+      if (!topicFilterFields.every((field) => matchesTopicFilter(item, field))) {
         return false;
       }
       if (!query) {
@@ -246,12 +360,16 @@
         item.case_type,
         item.built_thing,
         item.tool_stack,
+        item.target_audience,
         item.hook,
         item.content_value,
+        item.risk_flag,
         item.category_label,
         item.url
       ].some((value) => String(value || "").toLowerCase().includes(query));
     });
+
+    return sortItems(filtered);
   }
 
   function renderItems() {
@@ -299,6 +417,7 @@
     dom.snapshotTitle.textContent = snapshotLabel(content.snapshot);
     dom.totalCount.textContent = formatNumber(content.total || items.length);
     renderPlatformControls(platforms);
+    populateTopicFilters(items);
     renderItems();
   }
 
@@ -320,12 +439,33 @@
       setPlatformFilter(button.getAttribute("data-platform-id") || "");
     });
 
+    topicFilterFields.forEach((field) => {
+      dom[field.selectKey].addEventListener("change", () => {
+        state.topicFilters[field.stateKey] = dom[field.selectKey].value;
+        renderItems();
+      });
+    });
+
+    dom.sortSelect.addEventListener("change", () => {
+      state.sortBy = dom.sortSelect.value || "default";
+      renderItems();
+    });
+
     dom.clearButton.addEventListener("click", () => {
       state.query = "";
       state.platformId = "";
+      state.sortBy = "default";
+      Object.keys(state.topicFilters).forEach((key) => {
+        state.topicFilters[key] = "";
+      });
       dom.searchInput.value = "";
       dom.platformSelect.value = "";
+      dom.sortSelect.value = "default";
+      topicFilterFields.forEach((field) => {
+        dom[field.selectKey].value = "";
+      });
       renderPlatformControls(currentPlatforms());
+      populateTopicFilters(Array.isArray(state.content && state.content.items) ? state.content.items : []);
       renderItems();
     });
   }

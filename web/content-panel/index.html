@@ -52,12 +52,61 @@
         <button id="clearButton" type="button">清空</button>
       </section>
 
+      <section class="toolbar topic-filters" aria-label="选题筛选">
+        <label class="field">
+          <span>类型</span>
+          <select id="caseTypeSelect">
+            <option value="">全部类型</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>做了什么</span>
+          <select id="builtThingSelect">
+            <option value="">全部方向</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>工具</span>
+          <select id="toolStackSelect">
+            <option value="">全部工具</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>爆点</span>
+          <select id="hookSelect">
+            <option value="">全部爆点</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>内容价值</span>
+          <select id="contentValueSelect">
+            <option value="">全部价值</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>风险</span>
+          <select id="riskFlagSelect">
+            <option value="">全部风险</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>排序</span>
+          <select id="sortSelect">
+            <option value="default">默认排序</option>
+            <option value="hot_score">热度最高</option>
+            <option value="recent_hot_score">近期热度</option>
+            <option value="published_at">发布时间</option>
+            <option value="likes">点赞最多</option>
+          </select>
+        </label>
+      </section>
+
       <section class="platform-strip" id="platformStrip" aria-label="平台数量"></section>
 
       <section class="content-list" id="contentList" aria-live="polite"></section>
       <p class="empty" id="emptyState" hidden>没有匹配的内容</p>
     </main>
 
-    <script src="./app.js?v=topic-radar-merge-1"></script>
+    <script src="./app.js?v=topic-filters-1"></script>
   </body>
 </html>

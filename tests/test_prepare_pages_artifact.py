@@ -296,6 +296,42 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(xhs_item["platform_name"], "小红书选题")
             self.assertEqual(xhs_item["cover_url"], "https://img.example.com/xhs.jpg")
 
+    def test_skips_irrelevant_topic_import_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            import_source = root / "imports"
+
+            (source / "2026-06-29" / "html").mkdir(parents=True)
+            (source / "2026-06-29" / "txt").mkdir(parents=True)
+            import_source.mkdir()
+
+            (source / "index.html").write_text("<html>latest</html>", encoding="utf-8")
+            (source / "2026-06-29" / "html" / "16-04.html").write_text("<html>report</html>", encoding="utf-8")
+            (source / "2026-06-29" / "txt" / "16-04.txt").write_text("", encoding="utf-8")
+            (import_source / "full_cases.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,case_type,built_thing,tool_stack,content_value,description",
+                        "douyin,保留真案例,https://www.douyin.com/video/keep,真案例,网站,Codex,有结果,有结果",
+                        "douyin,删掉无关,https://www.douyin.com/video/skip1,无关,,Codex,,无关内容",
+                        "douyin,删掉观点,https://www.douyin.com/video/skip2,观点内容,,Codex,只有噱头,只有观点",
+                        "xiaohongshu,删掉引流,https://www.xiaohongshu.com/explore/skip3,课程引流,,Codex,引流明显,课程引流",
+                        "douyin,删掉空教程,https://www.douyin.com/video/skip4,教程,,Codex,可复刻,没有具体方向",
+                        "douyin,删掉噱头测评,https://www.douyin.com/video/skip5,工具测评,工具,Codex,只有噱头,只有噱头",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            self.assertEqual(content["imports"]["total"], 1)
+            self.assertEqual(content["total"], 1)
+            self.assertEqual(content["items"][0]["title"], "保留真案例")
+
     def test_copies_content_panel_assets_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

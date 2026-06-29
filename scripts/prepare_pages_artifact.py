@@ -67,6 +67,26 @@ def _is_topic_import(row: dict) -> bool:
     )
 
 
+def _topic_labels(row: dict, key: str) -> list[str]:
+    return [value.strip() for value in re.split(r"[、,，;；|]", row.get(key) or "") if value.strip()]
+
+
+def _is_relevant_topic(row: dict) -> bool:
+    case_type = (row.get("case_type") or "").strip()
+    built_thing = _topic_labels(row, "built_thing")
+    content_value = _topic_labels(row, "content_value")
+
+    if case_type in {"无关", "观点内容", "课程引流"}:
+        return False
+    if case_type in {"真案例", "失败复盘"}:
+        return True
+    if case_type == "教程":
+        return bool(built_thing)
+    if case_type == "工具测评":
+        return bool(built_thing and "只有噱头" not in content_value)
+    return False
+
+
 def _parse_item_payload(value: str) -> tuple:
     fields = {}
 
@@ -305,6 +325,9 @@ def _imported_search_content(import_source: Path) -> dict:
                 seen_urls.add(url)
 
                 is_topic_import = _is_topic_import(row)
+                if is_topic_import and not _is_relevant_topic(row):
+                    continue
+
                 platform_id, platform_name = _import_platform(platform, is_topic_import)
                 platforms.setdefault(
                     platform_id,

@@ -158,6 +158,11 @@ button:hover {
   padding: 16px;
 }
 
+.topic-filters {
+  grid-template-columns: repeat(7, minmax(128px, 1fr));
+  margin-top: -8px;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -435,6 +440,10 @@ select {
   }
 
   .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-filters {
     grid-template-columns: 1fr;
   }
 

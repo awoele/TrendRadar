@@ -28,6 +28,29 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn("content-tags", app_js)
         self.assertIn(".content-tags", styles)
 
+    def test_topic_filter_controls_match_radar_panel_dimensions(self):
+        index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
+        app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
+        styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
+
+        for control_id in (
+            "caseTypeSelect",
+            "builtThingSelect",
+            "toolStackSelect",
+            "hookSelect",
+            "contentValueSelect",
+            "riskFlagSelect",
+            "sortSelect",
+        ):
+            self.assertIn(control_id, index_html)
+            self.assertIn(control_id, app_js)
+
+        self.assertIn("populateTopicFilters", app_js)
+        self.assertIn("topicFilterFields", app_js)
+        self.assertIn("matchesTopicFilter", app_js)
+        self.assertIn("sortItems", app_js)
+        self.assertIn(".topic-filters", styles)
+
 
 if __name__ == "__main__":
     unittest.main()
