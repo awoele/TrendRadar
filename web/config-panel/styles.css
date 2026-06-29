@@ -94,6 +94,13 @@ button {
   font-weight: 700;
 }
 
+.header-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 button:hover,
 .report-link:hover {
   background: var(--accent-strong);
@@ -356,6 +363,7 @@ textarea {
 
   .action-row,
   .action-row button,
+  .header-links,
   .report-link {
     width: 100%;
   }

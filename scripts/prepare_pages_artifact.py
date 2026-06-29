@@ -170,6 +170,72 @@ def _parse_txt_platform_counts(txt_path: Path) -> list:
     return platforms
 
 
+def _parse_txt_snapshot_content(txt_path: Path) -> dict:
+    if not txt_path or not txt_path.exists():
+        return {
+            "snapshot": None,
+            "total": 0,
+            "platforms": [],
+            "items": [],
+        }
+
+    snapshot_date = txt_path.parent.parent.name
+    snapshot_time = txt_path.stem
+    platforms = []
+    items = []
+    current = None
+    header_expression = re.compile(r"^([A-Za-z0-9._-]+)\s*\|\s*(.+)$")
+    item_expression = re.compile(r"^(\d+)\.\s+(.*?)(?:\s+\[URL:(.*?)\])?$")
+
+    for raw_line in txt_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        header = header_expression.match(line)
+        if header:
+            current = {
+                "id": header.group(1).strip(),
+                "name": header.group(2).strip(),
+                "count": 0,
+            }
+            platforms.append(current)
+            continue
+
+        item = item_expression.match(line)
+        if current and item:
+            title = item.group(2).strip()
+            url = (item.group(3) or "").strip()
+            current["count"] += 1
+            items.append(
+                {
+                    "platform_id": current["id"],
+                    "platform_name": current["name"],
+                    "rank": int(item.group(1)),
+                    "title": title,
+                    "url": url,
+                }
+            )
+
+    return {
+        "snapshot": {
+            "date": snapshot_date,
+            "time": snapshot_time,
+            "path": txt_path.as_posix(),
+        },
+        "total": len(items),
+        "platforms": platforms,
+        "items": items,
+    }
+
+
+def _build_public_content(source: Path) -> dict:
+    content = _parse_txt_snapshot_content(_latest_txt_snapshot(source))
+    content["generated_at"] = (
+        datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
+    return content
+
+
 def _build_public_stats(source: Path, reports: list) -> dict:
     latest_stats = _parse_latest_report_stats(source / "index.html")
     platforms = _parse_txt_platform_counts(_latest_txt_snapshot(source))
@@ -225,11 +291,13 @@ def prepare_pages_artifact(
     keep_days: int = 7,
     panel_source: Path = Path("web/config-panel"),
     stats_panel_source: Path = Path("web/stats-panel"),
+    content_panel_source: Path = Path("web/content-panel"),
 ) -> dict:
     source = Path(source)
     dest = Path(dest)
     panel_source = Path(panel_source)
     stats_panel_source = Path(stats_panel_source)
+    content_panel_source = Path(content_panel_source)
 
     if not (source / "index.html").exists():
         raise FileNotFoundError(f"Missing public report: {source / 'index.html'}")
@@ -242,6 +310,7 @@ def prepare_pages_artifact(
     (dest / ".nojekyll").write_text("", encoding="utf-8")
     config_panel = None
     stats_panel = None
+    content_panel = None
 
     if panel_source.exists():
         panel_dest = dest / "config"
@@ -254,6 +323,12 @@ def prepare_pages_artifact(
         shutil.copytree(stats_panel_source, stats_panel_dest, dirs_exist_ok=True)
         if (stats_panel_dest / "index.html").exists():
             stats_panel = "stats/index.html"
+
+    if content_panel_source.exists():
+        content_panel_dest = dest / "content"
+        shutil.copytree(content_panel_source, content_panel_dest, dirs_exist_ok=True)
+        if (content_panel_dest / "index.html").exists():
+            content_panel = "content/index.html"
 
     dated_dirs = []
     for child in source.iterdir():
@@ -294,17 +369,25 @@ def prepare_pages_artifact(
         json.dumps(stats, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    content = _build_public_content(source)
+    (dest / "content.json").write_text(
+        json.dumps(content, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     manifest = {
         "latest": "index.html",
         "reports": reports,
         "keep_days": keep_days,
         "stats_json": "stats.json",
+        "content_json": "content.json",
     }
     if config_panel:
         manifest["config_panel"] = config_panel
     if stats_panel:
         manifest["stats_panel"] = stats_panel
+    if content_panel:
+        manifest["content_panel"] = content_panel
     (dest / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",

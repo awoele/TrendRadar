@@ -156,6 +156,69 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual((dest / "stats" / "app.js").read_text(encoding="utf-8"), "console.log('stats')")
             self.assertEqual(manifest["stats_panel"], "stats/index.html")
 
+    def test_generates_content_json_from_latest_txt_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+
+            (source / "2026-06-29" / "html").mkdir(parents=True)
+            (source / "2026-06-29" / "txt").mkdir(parents=True)
+
+            (source / "index.html").write_text("<html>latest</html>", encoding="utf-8")
+            (source / "2026-06-29" / "html" / "16-04.html").write_text("<html>report</html>", encoding="utf-8")
+            (source / "2026-06-29" / "txt" / "16-04.txt").write_text(
+                "\n".join(
+                    [
+                        "sspai | 少数派",
+                        "1. AI 工作流实践 [URL:https://sspai.com/post/1]",
+                        "2. Vibe Coding 游戏开发 [URL:https://sspai.com/post/2]",
+                        "",
+                        "v2ex | V2EX",
+                        "1. Codex 使用体验 [URL:https://www.v2ex.com/t/1]",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            manifest = prepare_pages_artifact(source, dest, keep_days=7)
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["content_json"], "content.json")
+            self.assertEqual(content["total"], 3)
+            self.assertEqual(content["snapshot"]["date"], "2026-06-29")
+            self.assertEqual(content["platforms"][0], {"id": "sspai", "name": "少数派", "count": 2})
+            self.assertEqual(content["items"][0]["platform_id"], "sspai")
+            self.assertEqual(content["items"][0]["platform_name"], "少数派")
+            self.assertEqual(content["items"][0]["rank"], 1)
+            self.assertEqual(content["items"][0]["title"], "AI 工作流实践")
+            self.assertEqual(content["items"][0]["url"], "https://sspai.com/post/1")
+
+    def test_copies_content_panel_assets_when_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            content_panel_source = root / "web" / "content-panel"
+
+            source.mkdir()
+            content_panel_source.mkdir(parents=True)
+
+            (source / "index.html").write_text("<html>latest</html>", encoding="utf-8")
+            (content_panel_source / "index.html").write_text("<html>content</html>", encoding="utf-8")
+            (content_panel_source / "app.js").write_text("console.log('content')", encoding="utf-8")
+
+            manifest = prepare_pages_artifact(
+                source,
+                dest,
+                keep_days=7,
+                content_panel_source=content_panel_source,
+            )
+
+            self.assertEqual((dest / "content" / "index.html").read_text(encoding="utf-8"), "<html>content</html>")
+            self.assertEqual((dest / "content" / "app.js").read_text(encoding="utf-8"), "console.log('content')")
+            self.assertEqual(manifest["content_panel"], "content/index.html")
+
 
 if __name__ == "__main__":
     unittest.main()

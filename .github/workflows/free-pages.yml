@@ -12,6 +12,7 @@ on:
       - "scripts/prepare_pages_artifact.py"
       - "trendradar/**"
       - "web/config-panel/**"
+      - "web/content-panel/**"
       - "web/stats-panel/**"
   schedule:
     # Runs hourly. GitHub schedules are best-effort and may be delayed.

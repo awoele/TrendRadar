@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrendRadar 内容</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">TrendRadar</p>
+        <h1>抓取内容</h1>
+      </div>
+      <nav class="nav-links" aria-label="页面导航">
+        <a href="../stats/">统计</a>
+        <a href="../index.html">报告</a>
+        <a href="../config/">配置</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="summary-band">
+        <div>
+          <p class="eyebrow">最新快照</p>
+          <h2 id="snapshotTitle">读取中</h2>
+        </div>
+        <div class="summary-metrics">
+          <div>
+            <span>内容总数</span>
+            <strong id="totalCount">-</strong>
+          </div>
+          <div>
+            <span>当前显示</span>
+            <strong id="visibleCount">-</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="toolbar" aria-label="内容筛选">
+        <label class="field">
+          <span>搜索标题</span>
+          <input id="searchInput" type="search" placeholder="例如 Codex、vibe coding、小游戏">
+        </label>
+        <label class="field">
+          <span>平台</span>
+          <select id="platformSelect">
+            <option value="">全部平台</option>
+          </select>
+        </label>
+        <button id="clearButton" type="button">清空</button>
+      </section>
+
+      <section class="platform-strip" id="platformStrip" aria-label="平台数量"></section>
+
+      <section class="content-list" id="contentList" aria-live="polite"></section>
+      <p class="empty" id="emptyState" hidden>没有匹配的内容</p>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
