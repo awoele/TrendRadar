@@ -23,7 +23,7 @@
     content: null,
     query: "",
     platformId: "",
-    sortBy: "default",
+    sortBy: "published_at",
     topicFilters: {
       caseType: "",
       builtThing: "",
@@ -306,16 +306,25 @@
     return number;
   }
 
-  function sortItems(items) {
-    if (state.sortBy === "default") {
-      return items;
+  function dateValue(value) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return 0;
     }
+    const time = Date.parse(text);
+    return Number.isNaN(time) ? 0 : time;
+  }
 
+  function compareNewestFirst(a, b) {
+    return dateValue(b.published_at) - dateValue(a.published_at);
+  }
+
+  function sortItems(items) {
     return items.slice().sort((a, b) => {
       if (state.sortBy === "published_at") {
-        return String(b.published_at || "").localeCompare(String(a.published_at || ""));
+        return compareNewestFirst(a, b);
       }
-      return numericValue(b[state.sortBy]) - numericValue(a[state.sortBy]);
+      return numericValue(b[state.sortBy]) - numericValue(a[state.sortBy]) || compareNewestFirst(a, b);
     });
   }
 
@@ -539,13 +548,13 @@
     dom.clearButton.addEventListener("click", () => {
       state.query = "";
       state.platformId = "";
-      state.sortBy = "default";
+      state.sortBy = "published_at";
       Object.keys(state.topicFilters).forEach((key) => {
         state.topicFilters[key] = "";
       });
       dom.searchInput.value = "";
       dom.platformSelect.value = "";
-      dom.sortSelect.value = "default";
+      dom.sortSelect.value = "published_at";
       topicFilterFields.forEach((field) => {
         dom[field.selectKey].value = "";
       });

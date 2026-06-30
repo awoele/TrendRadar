@@ -51,6 +51,16 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn("sortItems", app_js)
         self.assertIn(".topic-filters", styles)
 
+    def test_content_panel_defaults_to_newest_first_sorting(self):
+        index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
+        app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
+
+        self.assertNotIn('value="default"', index_html)
+        self.assertLess(index_html.index('value="published_at"'), index_html.index('value="hot_score"'))
+        self.assertIn('sortBy: "published_at"', app_js)
+        self.assertIn("compareNewestFirst", app_js)
+        self.assertNotIn('if (state.sortBy === "default")', app_js)
+
     def test_content_panel_renders_collection_run_history(self):
         index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
         app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
