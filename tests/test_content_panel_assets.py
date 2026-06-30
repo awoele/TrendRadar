@@ -77,12 +77,26 @@ class ContentPanelAssetTests(unittest.TestCase):
         styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
 
         self.assertNotIn("summary-band", index_html)
+        self.assertNotIn("topbar", index_html)
+        self.assertIn('<details class="side-menu"', index_html)
         self.assertIn('<details class="advanced-filters"', index_html)
         self.assertIn('<details class="collection-runs"', index_html)
         self.assertLess(index_html.index("platformStrip"), index_html.index("contentList"))
         self.assertLess(index_html.index("contentList"), index_html.index("collectionRunList"))
-        self.assertIn(".topbar.compact", styles)
+        self.assertIn(".side-menu", styles)
         self.assertIn(".advanced-filters", styles)
+
+    def test_platform_filters_are_compact_ordered_and_default_to_favorites(self):
+        index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
+        app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
+        styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
+
+        self.assertLess(index_html.index("platformStrip"), index_html.index("searchInput"))
+        self.assertIn('platformId: "douyin-favorites"', app_js)
+        self.assertIn("platformOrder", app_js)
+        self.assertLess(app_js.index('"douyin-favorites"'), app_js.index('"douyin-topic"'))
+        self.assertLess(app_js.index('"douyin-topic"'), app_js.index('"xiaohongshu-topic"'))
+        self.assertIn(".platform-strip.compact", styles)
 
     def test_panels_do_not_link_to_legacy_blue_report_home(self):
         panel_paths = (

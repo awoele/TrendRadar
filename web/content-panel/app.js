@@ -22,7 +22,7 @@
   const state = {
     content: null,
     query: "",
-    platformId: "",
+    platformId: "douyin-favorites",
     sortBy: "published_at",
     topicFilters: {
       caseType: "",
@@ -41,6 +41,12 @@
     { stateKey: "hook", itemKey: "hook", selectKey: "hookSelect", label: "全部爆点", split: true },
     { stateKey: "contentValue", itemKey: "content_value", selectKey: "contentValueSelect", label: "全部价值", split: true },
     { stateKey: "riskFlag", itemKey: "risk_flag", selectKey: "riskFlagSelect", label: "全部风险", split: true }
+  ];
+
+  const platformOrder = [
+    "douyin-favorites",
+    "douyin-topic",
+    "xiaohongshu-topic"
   ];
 
   const COVER_PALETTES = [
@@ -420,10 +426,28 @@
     dom.platformSelect.value = state.platformId;
   }
 
+  function orderedPlatforms(platforms) {
+    return (Array.isArray(platforms) ? platforms : []).slice().sort((a, b) => {
+      const aIndex = platformOrder.indexOf(a.id);
+      const bIndex = platformOrder.indexOf(b.id);
+      const aRank = aIndex === -1 ? platformOrder.length : aIndex;
+      const bRank = bIndex === -1 ? platformOrder.length : bIndex;
+      return aRank - bRank || String(a.name || a.id || "").localeCompare(String(b.name || b.id || ""), "zh-CN");
+    });
+  }
+
+  function ensurePlatformSelection(platforms) {
+    const ids = new Set(platforms.map((platform) => platform.id));
+    if (ids.has(state.platformId)) {
+      return;
+    }
+    state.platformId = ids.has("douyin-favorites") ? "douyin-favorites" : (platforms[0] && platforms[0].id) || "";
+  }
+
   function currentPlatforms() {
-    return Array.isArray(state.content && state.content.platforms)
+    return orderedPlatforms(Array.isArray(state.content && state.content.platforms)
       ? state.content.platforms
-      : [];
+      : []);
   }
 
   function setPlatformFilter(platformId, shouldToggle = true) {
@@ -505,11 +529,12 @@
 
   function render(content) {
     state.content = content;
-    const platforms = Array.isArray(content.platforms) ? content.platforms : [];
+    const platforms = orderedPlatforms(Array.isArray(content.platforms) ? content.platforms : []);
     const items = Array.isArray(content.items) ? content.items : [];
     dom.snapshotTitle.textContent = snapshotLabel(content.snapshot);
     dom.totalCount.textContent = formatNumber(content.total || items.length);
     renderCollectionRuns(content.collection_runs || []);
+    ensurePlatformSelection(platforms);
     renderPlatformControls(platforms);
     populateTopicFilters(items);
     renderItems();
@@ -541,19 +566,19 @@
     });
 
     dom.sortSelect.addEventListener("change", () => {
-      state.sortBy = dom.sortSelect.value || "default";
+      state.sortBy = dom.sortSelect.value || "published_at";
       renderItems();
     });
 
     dom.clearButton.addEventListener("click", () => {
       state.query = "";
-      state.platformId = "";
+      state.platformId = "douyin-favorites";
       state.sortBy = "published_at";
       Object.keys(state.topicFilters).forEach((key) => {
         state.topicFilters[key] = "";
       });
       dom.searchInput.value = "";
-      dom.platformSelect.value = "";
+      dom.platformSelect.value = state.platformId;
       dom.sortSelect.value = "published_at";
       topicFilterFields.forEach((field) => {
         dom[field.selectKey].value = "";
