@@ -8,35 +8,10 @@
   const TOKEN_KEY = "trendradar_config_token";
 
   const PLATFORM_CATALOG = [
-    { id: "toutiao", name: "今日头条" },
-    { id: "baidu", name: "百度热搜" },
-    { id: "bilibili-hot-search", name: "bilibili 热搜" },
-    { id: "bilibili", name: "哔哩哔哩" },
-    { id: "weibo", name: "微博" },
-    { id: "douyin", name: "抖音" },
-    { id: "zhihu", name: "知乎" },
-    { id: "sspai", name: "少数派" },
-    { id: "juejin", name: "稀土掘金" },
-    { id: "v2ex", name: "V2EX" },
-    { id: "ithome", name: "IT之家" },
-    { id: "github-trending-today", name: "GitHub Trending" },
-    { id: "github", name: "GitHub" },
-    { id: "producthunt", name: "Product Hunt" },
-    { id: "nowcoder", name: "牛客" },
-    { id: "chongbuluo", name: "虫部落" },
-    { id: "chongbuluo-hot", name: "虫部落热门" },
-    { id: "chongbuluo-latest", name: "虫部落最新" },
-    { id: "solidot", name: "Solidot" },
-    { id: "cls", name: "财联社" },
-    { id: "wallstreetcn", name: "华尔街见闻" },
-    { id: "wallstreetcn-news", name: "华尔街见闻资讯" },
-    { id: "xueqiu-hotstock", name: "雪球热股" },
-    { id: "ifeng", name: "凤凰网" },
-    { id: "tencent-hot", name: "腾讯热点" },
-    { id: "zaobao", name: "联合早报" },
-    { id: "pcbeta-windows11", name: "远景 Windows 11" },
-    { id: "mktnews", name: "MKT News" }
+    { id: "xiaohongshu", name: "小红书" },
+    { id: "douyin", name: "抖音" }
   ];
+  const PLATFORM_BY_ID = new Map(PLATFORM_CATALOG.map((platform) => [platform.id, platform]));
 
   const dom = {
     tokenInput: document.getElementById("tokenInput"),
@@ -47,18 +22,10 @@
     configForm: document.getElementById("configForm"),
     reloadButton: document.getElementById("reloadButton"),
     saveButton: document.getElementById("saveButton"),
-    reportMode: document.getElementById("reportMode"),
-    rankThreshold: document.getElementById("rankThreshold"),
-    maxNewsPerKeyword: document.getElementById("maxNewsPerKeyword"),
     requestInterval: document.getElementById("requestInterval"),
     timezone: document.getElementById("timezone"),
-    sortByPositionFirst: document.getElementById("sortByPositionFirst"),
-    reverseContentOrder: document.getElementById("reverseContentOrder"),
     platformGrid: document.getElementById("platformGrid"),
     platformCount: document.getElementById("platformCount"),
-    customPlatformId: document.getElementById("customPlatformId"),
-    customPlatformName: document.getElementById("customPlatformName"),
-    addPlatformButton: document.getElementById("addPlatformButton"),
     keywordText: document.getElementById("keywordText"),
     keywordCount: document.getElementById("keywordCount"),
     saveStatus: document.getElementById("saveStatus")
@@ -82,7 +49,6 @@
     dom.unlockButton.disabled = isBusy;
     dom.reloadButton.disabled = isBusy;
     dom.saveButton.disabled = isBusy;
-    dom.addPlatformButton.disabled = isBusy;
   }
 
   async function github(path, options = {}) {
@@ -213,17 +179,13 @@
     return `${yaml.trimEnd()}\n\n${nextSection}`;
   }
 
-  function mergePlatforms(platforms) {
-    const known = new Map(state.availablePlatforms.map((platform) => [platform.id, platform]));
-    platforms.forEach((platform) => {
-      if (known.has(platform.id)) {
-        known.get(platform.id).name = platform.name || platform.id;
-      } else {
-        const next = { id: platform.id, name: platform.name || platform.id };
-        state.availablePlatforms.push(next);
-        known.set(next.id, next);
-      }
-    });
+  function allowedPlatforms(platforms) {
+    return platforms
+      .filter((platform) => PLATFORM_BY_ID.has(platform.id))
+      .map((platform) => ({
+        id: platform.id,
+        name: platform.name || PLATFORM_BY_ID.get(platform.id).name
+      }));
   }
 
   function selectedPlatformList() {
@@ -288,19 +250,15 @@
   function hydrateForm(configText, wordsText) {
     state.configText = configText;
     state.wordsText = wordsText;
-    const platforms = parsePlatforms(configText);
+    const platforms = allowedPlatforms(parsePlatforms(configText));
+    const selected = platforms.length ? platforms : PLATFORM_CATALOG;
 
-    state.selectedPlatforms = new Map(platforms.map((platform) => [platform.id, platform.name]));
-    state.selectedOrder = platforms.map((platform) => platform.id);
-    mergePlatforms(platforms);
+    state.availablePlatforms = PLATFORM_CATALOG.map((item) => ({ ...item }));
+    state.selectedPlatforms = new Map(selected.map((platform) => [platform.id, platform.name]));
+    state.selectedOrder = selected.map((platform) => platform.id);
 
-    dom.reportMode.value = readSectionValue(configText, "report", "mode", "incremental");
-    dom.rankThreshold.value = readNumber(configText, "report", "rank_threshold", 5);
-    dom.maxNewsPerKeyword.value = readNumber(configText, "report", "max_news_per_keyword", 0);
     dom.requestInterval.value = readNumber(configText, "crawler", "request_interval", 1000);
     dom.timezone.value = readSectionValue(configText, "app", "timezone", "Asia/Shanghai");
-    dom.sortByPositionFirst.checked = readBoolean(configText, "report", "sort_by_position_first", false);
-    dom.reverseContentOrder.checked = readBoolean(configText, "report", "reverse_content_order", true);
     dom.keywordText.value = wordsText;
 
     renderPlatforms();
@@ -345,6 +303,9 @@
       if (!/^[A-Za-z0-9._-]+$/.test(platform.id)) {
         throw new Error(`平台 ID 不合法：${platform.id}`);
       }
+      if (!PLATFORM_BY_ID.has(platform.id)) {
+        throw new Error(`这里只支持小红书和抖音：${platform.id}`);
+      }
     });
 
     const keywordLines = dom.keywordText.value.split(/\r?\n/).filter((line) => {
@@ -356,11 +317,6 @@
     }
 
     let next = state.configText;
-    next = replaceLineInSection(next, "report", "mode", yamlString(dom.reportMode.value));
-    next = replaceLineInSection(next, "report", "rank_threshold", String(clampInt(dom.rankThreshold.value, 1, 100, 5)));
-    next = replaceLineInSection(next, "report", "max_news_per_keyword", String(clampInt(dom.maxNewsPerKeyword.value, 0, 200, 0)));
-    next = replaceLineInSection(next, "report", "sort_by_position_first", String(Boolean(dom.sortByPositionFirst.checked)).toLowerCase());
-    next = replaceLineInSection(next, "report", "reverse_content_order", String(Boolean(dom.reverseContentOrder.checked)).toLowerCase());
     next = replaceLineInSection(next, "crawler", "request_interval", String(clampInt(dom.requestInterval.value, 50, 10000, 1000)));
     next = replaceLineInSection(next, "app", "timezone", yamlString(dom.timezone.value.trim() || "Asia/Shanghai"));
     next = replacePlatformSection(next, platforms);
@@ -490,33 +446,6 @@
     setStatus(dom.authStatus, "已清除本浏览器里的 token。", "");
   }
 
-  function addCustomPlatform() {
-    const id = dom.customPlatformId.value.trim();
-    const name = dom.customPlatformName.value.trim() || id;
-    if (!id) {
-      setStatus(dom.saveStatus, "请输入平台 ID。", "warn");
-      return;
-    }
-    if (!/^[A-Za-z0-9._-]+$/.test(id)) {
-      setStatus(dom.saveStatus, "平台 ID 只能包含字母、数字、点、下划线和短横线。", "bad");
-      return;
-    }
-
-    const existing = state.availablePlatforms.find((platform) => platform.id === id);
-    if (existing) {
-      existing.name = name;
-    } else {
-      state.availablePlatforms.push({ id, name });
-    }
-    state.selectedPlatforms.set(id, name);
-    if (!state.selectedOrder.includes(id)) {
-      state.selectedOrder.push(id);
-    }
-    dom.customPlatformId.value = "";
-    dom.customPlatformName.value = "";
-    renderPlatforms();
-  }
-
   function bindEvents() {
     dom.unlockButton.addEventListener("click", () => {
       if (setTokenFromInput()) {
@@ -529,7 +458,6 @@
       }
     });
     dom.forgetButton.addEventListener("click", forgetToken);
-    dom.addPlatformButton.addEventListener("click", addCustomPlatform);
     dom.keywordText.addEventListener("input", refreshKeywordCount);
     dom.configForm.addEventListener("submit", saveConfig);
 

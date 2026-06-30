@@ -2,56 +2,51 @@ param(
     [switch]$Stage,
     [switch]$Commit,
     [switch]$Push,
-    [string]$Message = "chore: publish free GitHub Pages setup"
+    [string]$Message = "chore: publish xhs douyin panels"
 )
 
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$python = Join-Path $root ".venv\Scripts\python.exe"
+$python = "C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
 
 if (!(Test-Path -LiteralPath $python)) {
-    throw "Virtualenv Python not found: $python"
+    throw "Runtime Python not found: $python"
 }
 
 Push-Location $root
 try {
-    & $python -m unittest tests.test_prepare_pages_artifact tests.test_content_panel_assets
-    & $python scripts/prepare_pages_artifact.py --source output --dest public
-
-    $remote = git remote get-url origin 2>$null
-    if (!$remote) {
-        Write-Output "No git origin remote is configured yet."
-        Write-Output "Create a public GitHub repository, then run:"
-        Write-Output "  git remote add origin https://github.com/<your-name>/<repo>.git"
+    & $python -m unittest discover -s tests
+    if ($LASTEXITCODE -ne 0) {
+        throw "Tests failed with exit code $LASTEXITCODE"
     }
-    else {
-        Write-Output "Git origin: $remote"
+
+    & $python scripts\prepare_pages_artifact.py --source output --dest public
+    if ($LASTEXITCODE -ne 0) {
+        throw "Panel build failed with exit code $LASTEXITCODE"
     }
 
     $files = @(
         ".github/workflows/free-pages.yml",
         ".gitignore",
+        "README.md",
         "config/config.yaml",
         "config/frequency_words.txt",
+        "data/imports",
         "docs/free-public-github-pages.md",
-        "docs/superpowers/plans/2026-06-29-github-pages-free-public.md",
-        "local-ensure-services.ps1",
-        "local-health-check.ps1",
+        "local-collect-xhs-douyin.ps1",
         "local-publish-free-pages.ps1",
-        "local-register-longterm.ps1",
-        "local-stop-all.ps1",
+        "scripts/import_redfox_xhs.py",
         "scripts/prepare_pages_artifact.py",
-        "tests/test_content_panel_assets.py",
-        "tests/test_prepare_pages_artifact.py",
-        "web/stats-panel/app.js",
-        "web/stats-panel/index.html",
-        "web/stats-panel/styles.css"
+        "tests",
+        "web/config-panel",
+        "web/content-panel",
+        "web/stats-panel"
     )
 
     if ($Stage -or $Commit -or $Push) {
         git add -- $files
-        Write-Output "Staged free Pages files."
+        Write-Output "Staged Xiaohongshu/Douyin panel files."
     }
 
     if ($Commit -or $Push) {
@@ -59,15 +54,13 @@ try {
     }
 
     if ($Push) {
-        git push -u origin HEAD
+        git push awoele HEAD:master
     }
 
     Write-Output ""
-    Write-Output "Next GitHub setup:"
-    Write-Output "1. Make the repository public."
-    Write-Output "2. Go to Settings > Pages > Build and deployment > Source: GitHub Actions."
-    Write-Output "3. Go to Actions > Free Public Pages > Run workflow."
-    Write-Output "4. Public URL will be: https://<your-name>.github.io/<repo>/"
+    Write-Output "Local content panel: $root\public\content\index.html"
+    Write-Output "Public content panel: https://awoele.github.io/TrendRadar/content/"
+    Write-Output "Owner config panel: https://awoele.github.io/TrendRadar/config/"
 }
 finally {
     Pop-Location

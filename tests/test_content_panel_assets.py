@@ -73,17 +73,32 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertNotIn(".report-item", stats_css)
         self.assertNotIn(".report-list", stats_css)
 
-    def test_public_publish_does_not_run_legacy_report_crawler(self):
+    def test_public_publish_does_not_run_legacy_report_crawler_or_services(self):
         workflow = Path(".github/workflows/free-pages.yml").read_text(encoding="utf-8")
-        register_script = Path("local-register-longterm.ps1").read_text(encoding="utf-8")
-        ensure_script = Path("local-ensure-services.ps1").read_text(encoding="utf-8")
+        publish_script = Path("local-publish-free-pages.ps1").read_text(encoding="utf-8")
+        collect_script = Path("local-collect-xhs-douyin.ps1").read_text(encoding="utf-8")
 
         self.assertNotIn("python -m trendradar", workflow)
         self.assertNotIn("Run crawler", workflow)
-        self.assertNotIn("local-run-once.ps1", register_script)
-        self.assertNotIn("Run TrendRadar crawler", register_script)
-        self.assertNotIn("TrendRadar report server", ensure_script)
-        self.assertNotIn("local-serve-output.ps1", ensure_script)
+        self.assertNotIn("local-run-once.ps1", publish_script)
+        self.assertNotIn("local-serve-output.ps1", publish_script)
+        self.assertNotIn("MCP", publish_script)
+        self.assertNotIn("TIKHUB", collect_script.upper())
+        self.assertIn("collect_authenticated.cjs", collect_script)
+        self.assertIn("$KeywordLimit", collect_script)
+
+    def test_config_panel_only_exposes_xhs_and_douyin_platforms(self):
+        app_js = Path("web/config-panel/app.js").read_text(encoding="utf-8")
+        index_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
+
+        self.assertIn('{ id: "xiaohongshu", name: "小红书" }', app_js)
+        self.assertIn('{ id: "douyin", name: "抖音" }', app_js)
+        for removed_platform in ("weibo", "zhihu", "bilibili", "toutiao", "github-trending-today"):
+            self.assertNotIn(f'id: "{removed_platform}"', app_js)
+
+        self.assertNotIn("customPlatformId", app_js)
+        self.assertNotIn("customPlatformId", index_html)
+        self.assertNotIn("报告模式", index_html)
 
 
 if __name__ == "__main__":

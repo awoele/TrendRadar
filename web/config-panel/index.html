@@ -44,7 +44,7 @@
         <section class="section-head">
           <div>
             <p class="eyebrow">抓取设置</p>
-            <h2>主题、平台和报告规则</h2>
+            <h2>主题、平台和采集规则</h2>
           </div>
           <div class="action-row">
             <button id="reloadButton" class="secondary" type="button">重新加载</button>
@@ -54,36 +54,12 @@
 
         <section class="control-grid">
           <label class="field">
-            <span>报告模式</span>
-            <select id="reportMode">
-              <option value="incremental">增量监控</option>
-              <option value="current">当前榜单</option>
-              <option value="daily">当日汇总</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>排名高亮阈值</span>
-            <input id="rankThreshold" type="number" min="1" max="100" step="1">
-          </label>
-          <label class="field">
-            <span>单个主题最多显示</span>
-            <input id="maxNewsPerKeyword" type="number" min="0" max="200" step="1">
-          </label>
-          <label class="field">
             <span>抓取间隔毫秒</span>
             <input id="requestInterval" type="number" min="50" max="10000" step="50">
           </label>
           <label class="field">
             <span>时区</span>
             <input id="timezone" type="text" spellcheck="false">
-          </label>
-          <label class="switch">
-            <input id="sortByPositionFirst" type="checkbox">
-            <span>按配置顺序优先排序</span>
-          </label>
-          <label class="switch">
-            <input id="reverseContentOrder" type="checkbox">
-            <span>新增热点新闻放在前面</span>
           </label>
         </section>
 
@@ -96,17 +72,6 @@
             <p id="platformCount" class="count-label">0 个平台</p>
           </div>
           <div id="platformGrid" class="platform-grid"></div>
-          <div class="custom-platform">
-            <label class="field">
-              <span>自定义平台 ID</span>
-              <input id="customPlatformId" type="text" spellcheck="false" placeholder="wallstreetcn-hot">
-            </label>
-            <label class="field">
-              <span>显示名称</span>
-              <input id="customPlatformName" type="text" placeholder="华尔街见闻">
-            </label>
-            <button id="addPlatformButton" class="secondary" type="button">添加平台</button>
-          </div>
         </section>
 
         <section class="panel-section">
@@ -119,10 +84,9 @@
           </div>
           <textarea id="keywordText" spellcheck="false"></textarea>
           <div class="syntax-strip">
-            <span>普通词：AI</span>
-            <span>必须词：+发布会</span>
-            <span>过滤词：!广告</span>
-            <span>数量：@10</span>
+            <span>一行一个搜索词</span>
+            <span>只用于小红书/抖音</span>
+            <span>[GLOBAL_FILTER] 后是排除词</span>
           </div>
         </section>
 
