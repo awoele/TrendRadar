@@ -195,6 +195,9 @@
     if (item.source_type === "topic_import") {
       return "选题";
     }
+    if (item.source_type === "favorite_import") {
+      return "\u6536\u85cf";
+    }
     if (item.source_type === "search_import") {
       return "搜索";
     }

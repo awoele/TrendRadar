@@ -62,7 +62,10 @@ def _first_nonempty(row: dict, field_names: tuple) -> str:
     return ""
 
 
-def _import_platform(platform: str, is_topic_import: bool) -> tuple:
+def _import_platform(platform: str, is_topic_import: bool, source: str = "") -> tuple:
+    if source == "douyin:favorites":
+        return "douyin-favorites", "\u6296\u97f3\u6536\u85cf"
+
     platform_names = {
         "douyin": "抖音",
         "xiaohongshu": "小红书",
@@ -379,8 +382,14 @@ def _imported_search_content(import_source: Path) -> dict:
                 if is_topic_import and not _is_relevant_topic(row):
                     continue
 
-                platform_id, platform_name = _import_platform(platform, is_topic_import)
-                source_type = "topic_import" if is_topic_import else "search_import"
+                platform_id, platform_name = _import_platform(platform, is_topic_import, source)
+                source_type = (
+                    "favorite_import"
+                    if source == "douyin:favorites"
+                    else "topic_import"
+                    if is_topic_import
+                    else "search_import"
+                )
                 platforms.setdefault(
                     platform_id,
                     {
@@ -454,6 +463,7 @@ def _is_smoke_import(path: Path) -> bool:
 def _collection_platform_name(platform: str) -> str:
     return {
         "douyin": "抖音",
+        "douyin-favorites": "抖音收藏",
         "xiaohongshu": "小红书",
     }.get(platform, platform or "unknown")
 
@@ -512,6 +522,9 @@ def _collection_runs(import_source: Path) -> list[dict]:
             for row in csv.DictReader(handle):
                 row_count += 1
                 platform = (row.get("platform") or "").strip().lower()
+                source = (row.get("source") or "").strip()
+                if source == "douyin:favorites":
+                    platform = "douyin-favorites"
                 if platform:
                     platform_counts[platform] = platform_counts.get(platform, 0) + 1
 
@@ -519,13 +532,16 @@ def _collection_runs(import_source: Path) -> list[dict]:
                 if keyword:
                     keywords.add(keyword)
 
-                source = (row.get("source") or "").strip()
                 if source:
                     sources.add(source)
 
                 published_at = (row.get("published_at") or "").strip()[:10]
                 if re.match(r"\d{4}-\d{2}-\d{2}$", published_at):
                     published_dates.append(published_at)
+
+        if row_count == 0 and "douyin_favorites" in csv_file.stem.lower():
+            platform_counts.setdefault("douyin", 0)
+            sources.add("douyin:favorites")
 
         start_date, end_date = _collection_window_from_name(csv_file.name)
         if not start_date and published_dates:
@@ -586,6 +602,7 @@ def _merge_platform_counts(*platform_lists: list) -> list:
 def _is_primary_content_platform(platform_id: str) -> bool:
     return platform_id in {
         "douyin-topic",
+        "douyin-favorites",
         "xiaohongshu-topic",
         "douyin-search",
         "xiaohongshu-search",
