@@ -51,6 +51,17 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn("sortItems", app_js)
         self.assertIn(".topic-filters", styles)
 
+    def test_content_panel_renders_collection_run_history(self):
+        index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
+        app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
+        styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("collectionRunList", index_html)
+        self.assertIn("renderCollectionRuns", app_js)
+        self.assertIn("collection_runs", app_js)
+        self.assertIn(".collection-runs", styles)
+        self.assertIn(".run-card", styles)
+
     def test_panels_do_not_link_to_legacy_blue_report_home(self):
         panel_paths = (
             Path("web/content-panel/index.html"),
@@ -80,6 +91,7 @@ class ContentPanelAssetTests(unittest.TestCase):
 
         self.assertNotIn("python -m trendradar", workflow)
         self.assertNotIn("Run crawler", workflow)
+        self.assertIn("fetch-depth: 0", workflow)
         self.assertNotIn("local-run-once.ps1", publish_script)
         self.assertNotIn("local-serve-output.ps1", publish_script)
         self.assertNotIn("MCP", publish_script)

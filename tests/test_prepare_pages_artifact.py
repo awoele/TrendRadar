@@ -1,12 +1,54 @@
 import json
+import os
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts.prepare_pages_artifact import prepare_pages_artifact
 
 
 class PreparePagesArtifactTests(unittest.TestCase):
+    def test_content_json_includes_collection_runs_from_import_csvs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            import_source = root / "imports"
+            import_source.mkdir()
+
+            csv_path = import_source / "03_douyin_tikhub_vibecoding_2026-06-16_2026-06-30.csv"
+            csv_path.write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,keyword,source,published_at",
+                        "douyin,First,https://www.douyin.com/video/1,vibe coding,tikhub:douyin_keyword_search,2026-06-20",
+                        "douyin,Second,https://www.douyin.com/video/2,Codex,tikhub:douyin_keyword_search,2026-06-21",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            updated_at = datetime(2026, 6, 30, 16, 0, 0, tzinfo=timezone.utc).timestamp()
+            os.utime(csv_path, (updated_at, updated_at))
+
+            prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            runs = content["collection_runs"]
+
+            self.assertEqual(len(runs), 1)
+            self.assertEqual(runs[0]["file"], "03_douyin_tikhub_vibecoding_2026-06-16_2026-06-30.csv")
+            self.assertEqual(runs[0]["start_date"], "2026-06-16")
+            self.assertEqual(runs[0]["end_date"], "2026-06-30")
+            self.assertEqual(runs[0]["row_count"], 2)
+            self.assertEqual(runs[0]["keyword_count"], 2)
+            self.assertEqual(runs[0]["keywords"], ["Codex", "vibe coding"])
+            self.assertEqual(runs[0]["platforms"][0]["id"], "douyin")
+            self.assertEqual(runs[0]["platforms"][0]["count"], 2)
+            self.assertEqual(runs[0]["sources"], ["tikhub:douyin_keyword_search"])
+            self.assertTrue(runs[0]["updated_at"].startswith("2026-06-30T16:00:00"))
+            self.assertEqual(content["imports"]["runs"], runs)
+
     def test_builds_content_only_site_without_report_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

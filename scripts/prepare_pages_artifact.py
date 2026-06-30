@@ -4,6 +4,7 @@ import html
 import json
 import re
 import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -417,6 +418,128 @@ def _imported_search_content(import_source: Path) -> dict:
     }
 
 
+def _collection_window_from_name(file_name: str) -> tuple[str, str]:
+    dates = re.findall(r"\d{4}-\d{2}-\d{2}", file_name)
+    if len(dates) >= 2:
+        return dates[-2], dates[-1]
+    if len(dates) == 1:
+        return dates[0], dates[0]
+    return "", ""
+
+
+def _collection_platform_name(platform: str) -> str:
+    return {
+        "douyin": "抖音",
+        "xiaohongshu": "小红书",
+    }.get(platform, platform or "unknown")
+
+
+def _csv_updated_at(path: Path) -> str:
+    git_value = _git_file_updated_at(path)
+    if git_value:
+        return git_value
+    return (
+        datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+        .isoformat(timespec="seconds")
+        .replace("+00:00", "Z")
+    )
+
+
+def _git_file_updated_at(path: Path) -> str:
+    root = Path(__file__).resolve().parents[1]
+    try:
+        relative_path = path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return ""
+
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cI", "--", relative_path.as_posix()],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+    value = result.stdout.strip()
+    if not value:
+        return ""
+    return value.replace("+00:00", "Z")
+
+
+def _collection_runs(import_source: Path) -> list[dict]:
+    if not import_source.exists():
+        return []
+
+    runs = []
+    for csv_file in sorted(import_source.glob("*.csv")):
+        row_count = 0
+        platform_counts = {}
+        keywords = set()
+        sources = set()
+        published_dates = []
+
+        with csv_file.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                row_count += 1
+                platform = (row.get("platform") or "").strip().lower()
+                if platform:
+                    platform_counts[platform] = platform_counts.get(platform, 0) + 1
+
+                keyword = (row.get("keyword") or "").strip()
+                if keyword:
+                    keywords.add(keyword)
+
+                source = (row.get("source") or "").strip()
+                if source:
+                    sources.add(source)
+
+                published_at = (row.get("published_at") or "").strip()[:10]
+                if re.match(r"\d{4}-\d{2}-\d{2}$", published_at):
+                    published_dates.append(published_at)
+
+        start_date, end_date = _collection_window_from_name(csv_file.name)
+        if not start_date and published_dates:
+            start_date = min(published_dates)
+            end_date = max(published_dates)
+
+        runs.append(
+            {
+                "file": csv_file.name,
+                "start_date": start_date,
+                "end_date": end_date,
+                "updated_at": _csv_updated_at(csv_file),
+                "row_count": row_count,
+                "keyword_count": len(keywords),
+                "keywords": sorted(keywords, key=str.lower),
+                "platforms": [
+                    {
+                        "id": platform,
+                        "name": _collection_platform_name(platform),
+                        "count": count,
+                    }
+                    for platform, count in sorted(
+                        platform_counts.items(), key=lambda item: (-item[1], item[0])
+                    )
+                ],
+                "sources": sorted(sources, key=str.lower),
+            }
+        )
+
+    return sorted(
+        runs,
+        key=lambda run: (
+            run.get("end_date") or "",
+            run.get("updated_at") or "",
+            run.get("file") or "",
+        ),
+        reverse=True,
+    )
+
+
 def _merge_platform_counts(*platform_lists: list) -> list:
     merged = {}
     for platform_list in platform_lists:
@@ -463,8 +586,10 @@ def _filter_primary_content(content: dict) -> dict:
 
 
 def _build_public_content(source: Path, import_source: Path = Path("data/imports")) -> dict:
+    import_source = Path(import_source)
     content = _filter_primary_content(_parse_txt_snapshot_content(_latest_txt_snapshot(source)))
-    imported = _imported_search_content(Path(import_source))
+    imported = _imported_search_content(import_source)
+    runs = _collection_runs(import_source)
     content["items"] = imported["items"] + content["items"]
     content["platforms"] = _merge_platform_counts(imported["platforms"], content["platforms"])
     content["total"] = len(content["items"])
@@ -474,7 +599,9 @@ def _build_public_content(source: Path, import_source: Path = Path("data/imports
     content["imports"] = {
         "total": len(imported["items"]),
         "platforms": imported["platforms"],
+        "runs": runs,
     }
+    content["collection_runs"] = runs
     return content
 
 

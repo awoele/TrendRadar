@@ -13,6 +13,7 @@
     riskFlagSelect: document.getElementById("riskFlagSelect"),
     sortSelect: document.getElementById("sortSelect"),
     clearButton: document.getElementById("clearButton"),
+    collectionRunList: document.getElementById("collectionRunList"),
     platformStrip: document.getElementById("platformStrip"),
     contentList: document.getElementById("contentList"),
     emptyState: document.getElementById("emptyState")
@@ -108,6 +109,86 @@
       return "暂无快照";
     }
     return `${snapshot.date || ""} ${snapshot.time || ""}`.trim();
+  }
+
+  function formatDateWindow(run) {
+    const start = run.start_date || "";
+    const end = run.end_date || "";
+    if (start && end && start !== end) {
+      return `${start} - ${end}`;
+    }
+    return start || end || "未记录";
+  }
+
+  function formatUpdatedAt(value) {
+    if (!value) {
+      return "未记录";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+    return date.toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function runPlatformSummary(run) {
+    const platforms = Array.isArray(run.platforms) ? run.platforms : [];
+    if (!platforms.length) {
+      return "未知平台";
+    }
+    return platforms
+      .map((platform) => `${platform.name || platform.id} ${formatNumber(platform.count)}`)
+      .join(" / ");
+  }
+
+  function runKeywordSummary(run) {
+    const keywords = Array.isArray(run.keywords) ? run.keywords : [];
+    if (!keywords.length) {
+      return "未记录关键词";
+    }
+    const preview = keywords.slice(0, 4).join("、");
+    return keywords.length > 4 ? `${preview} 等 ${formatNumber(run.keyword_count || keywords.length)} 个` : preview;
+  }
+
+  function runSourceSummary(run) {
+    const sources = Array.isArray(run.sources) ? run.sources : [];
+    if (!sources.length) {
+      return run.file || "";
+    }
+    return sources.slice(0, 2).join(" / ");
+  }
+
+  function renderCollectionRuns(runs) {
+    const collectionRuns = Array.isArray(runs) ? runs : [];
+    dom.collectionRunList.innerHTML = "";
+
+    if (!collectionRuns.length) {
+      dom.collectionRunList.innerHTML = '<article class="run-card muted-run">暂无抓取记录</article>';
+      return;
+    }
+
+    collectionRuns.slice(0, 8).forEach((run) => {
+      const card = document.createElement("article");
+      card.className = "run-card";
+      card.innerHTML = `
+        <div class="run-card-top">
+          <span>${escapeHtml(runPlatformSummary(run))}</span>
+          <strong>${formatNumber(run.row_count || 0)}</strong>
+        </div>
+        <div class="run-window">${escapeHtml(formatDateWindow(run))}</div>
+        <div class="run-detail">${escapeHtml(runKeywordSummary(run))}</div>
+        <div class="run-meta">
+          <span>${escapeHtml(formatUpdatedAt(run.updated_at))}</span>
+          <span>${escapeHtml(runSourceSummary(run))}</span>
+        </div>
+      `;
+      dom.collectionRunList.appendChild(card);
+    });
   }
 
   function itemBadge(item) {
@@ -416,6 +497,7 @@
     const items = Array.isArray(content.items) ? content.items : [];
     dom.snapshotTitle.textContent = snapshotLabel(content.snapshot);
     dom.totalCount.textContent = formatNumber(content.total || items.length);
+    renderCollectionRuns(content.collection_runs || []);
     renderPlatformControls(platforms);
     populateTopicFilters(items);
     renderItems();
