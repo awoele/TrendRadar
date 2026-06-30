@@ -146,6 +146,37 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn(".stats-overview", stats_css)
         self.assertIn(".metric-rail", stats_css)
 
+    def test_stats_dashboard_balances_panels_and_scrolls_long_lists(self):
+        stats_html = Path("web/stats-panel/index.html").read_text(encoding="utf-8")
+        stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('class="dashboard-grid"', stats_html)
+        self.assertIn('class="panel keyword-panel"', stats_html)
+        self.assertIn('class="panel health-panel"', stats_html)
+        self.assertNotIn('class="side-stack"', stats_html)
+        self.assertLess(stats_html.index("platform-panel"), stats_html.index("keyword-panel"))
+        self.assertLess(stats_html.index("keyword-panel"), stats_html.index("health-panel"))
+        self.assertIn(".dashboard-grid", stats_css)
+        self.assertIn("grid-template-areas", stats_css)
+        self.assertIn(".keyword-panel", stats_css)
+        self.assertIn("max-height: 360px", stats_css)
+        self.assertIn("overflow-y: auto", stats_css)
+        self.assertIn("align-items: stretch", stats_css)
+
+    def test_stats_menu_is_embedded_in_snapshot_card(self):
+        stats_html = Path("web/stats-panel/index.html").read_text(encoding="utf-8")
+        stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
+
+        status_start = stats_html.index('class="status-band"')
+        status_end = stats_html.index("</section>", status_start)
+        status_markup = stats_html[status_start:status_end]
+        overview_css = stats_css[stats_css.index(".stats-overview"):stats_css.index(".status-band .side-menu")]
+
+        self.assertIn('<details class="side-menu"', status_markup)
+        self.assertIn(".status-band .side-menu", stats_css)
+        self.assertNotIn("auto minmax", overview_css)
+        self.assertIn("grid-template-columns: minmax(300px, 0.62fr) minmax(0, 1.38fr)", stats_css)
+
     def test_config_panel_uses_compact_side_menu_layout(self):
         config_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
         config_css = Path("web/config-panel/styles.css").read_text(encoding="utf-8")

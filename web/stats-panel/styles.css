@@ -169,23 +169,23 @@ h2 {
 }
 
 .status-band {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  min-width: 240px;
+  min-width: 300px;
   padding: 16px;
 }
 
 .stats-overview {
   display: grid;
-  grid-template-columns: auto minmax(240px, 0.55fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(300px, 0.62fr) minmax(0, 1.38fr);
   gap: 12px;
   align-items: stretch;
 }
 
-.stats-overview .side-menu {
-  align-self: start;
+.status-band .side-menu {
+  align-self: center;
 }
 
 .status-time {
@@ -229,16 +229,29 @@ h2 {
   font-weight: 780;
 }
 
-.layout {
+.dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(310px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  grid-template-areas:
+    "platform keywords"
+    "platform health";
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
 }
 
-.side-stack {
-  display: grid;
-  gap: 14px;
+.platform-panel {
+  grid-area: platform;
+  min-height: 394px;
+}
+
+.keyword-panel {
+  grid-area: keywords;
+  min-height: 0;
+}
+
+.health-panel {
+  grid-area: health;
+  align-self: start;
 }
 
 .panel {
@@ -331,6 +344,21 @@ td {
   gap: 10px;
 }
 
+.keyword-panel .rank-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.keyword-panel .rank-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.keyword-panel .rank-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.22);
+}
+
 .rank-item,
 .failure-item,
 .empty {
@@ -383,13 +411,19 @@ td {
 
 @media (max-width: 980px) {
   .stats-overview,
-  .layout,
   .metric-grid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .platform-panel {
-    grid-column: 1 / -1;
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "platform platform"
+      "keywords health";
+  }
+
+  .keyword-panel .rank-list {
+    max-height: 300px;
   }
 }
 
@@ -416,10 +450,21 @@ td {
     flex-direction: column;
   }
 
+  .status-band {
+    grid-template-columns: 1fr;
+  }
+
   .stats-overview,
   .metric-grid,
-  .layout {
+  .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-grid {
+    grid-template-areas:
+      "platform"
+      "keywords"
+      "health";
   }
 
   .nav-links,
