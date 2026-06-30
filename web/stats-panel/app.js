@@ -10,7 +10,6 @@
     platformRows: document.getElementById("platformRows"),
     keywordRows: document.getElementById("keywordRows"),
     failedPlatforms: document.getElementById("failedPlatforms"),
-    reportRows: document.getElementById("reportRows"),
     emptyTemplate: document.getElementById("emptyTemplate")
   };
 
@@ -156,32 +155,11 @@
     });
   }
 
-  function renderReports(reports) {
-    const items = Array.isArray(reports) ? reports.slice(0, 8) : [];
-    dom.reportRows.innerHTML = "";
-    if (!items.length) {
-      dom.reportRows.appendChild(emptyNode("暂无历史报告"));
-      return;
-    }
-
-    items.forEach((report) => {
-      const link = document.createElement("a");
-      link.className = "report-item";
-      link.href = `../${report.path}`;
-      link.innerHTML = `
-        <strong>${escapeHtml(report.title || report.path)}</strong>
-        <span>${escapeHtml(report.date || "")} · ${formatNumber(report.bytes || 0)} bytes</span>
-      `;
-      dom.reportRows.appendChild(link);
-    });
-  }
-
   function render(stats) {
     renderSummary(stats);
     renderPlatforms(stats.platforms);
     renderKeywords(stats.keywords);
     renderFailures(stats.failed_platforms);
-    renderReports(stats.reports);
   }
 
   async function boot() {
@@ -200,7 +178,6 @@
       dom.platformRows.innerHTML = "";
       dom.keywordRows.innerHTML = "";
       dom.failedPlatforms.innerHTML = "";
-      dom.reportRows.innerHTML = "";
       dom.keywordRows.appendChild(emptyNode(error.message));
     }
   }

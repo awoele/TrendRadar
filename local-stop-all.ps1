@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Continue"
 
-foreach ($name in "TrendRadar-KeepAlive", "TrendRadar-ReportServer", "TrendRadar-MCPServer") {
+foreach ($name in "TrendRadar-Crawler", "TrendRadar-KeepAlive", "TrendRadar-ReportServer", "TrendRadar-MCPServer") {
     Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
 }
 

@@ -36,20 +36,14 @@ function Start-ServiceScript {
 }
 
 Start-ServiceScript `
-    -Name "TrendRadar report server" `
-    -ScriptPath (Join-Path $root "local-serve-output.ps1") `
-    -Port 8080
-
-Start-ServiceScript `
     -Name "TrendRadar MCP server" `
     -ScriptPath (Join-Path $root "local-start-mcp-http.ps1") `
     -Port 3333
 
 $deadline = (Get-Date).AddSeconds(45)
 do {
-    $reportOk = Test-PortListening -Port 8080
     $mcpOk = Test-PortListening -Port 3333
-    if ($reportOk -and $mcpOk) { break }
+    if ($mcpOk) { break }
     Start-Sleep -Seconds 2
 } while ((Get-Date) -lt $deadline)
 

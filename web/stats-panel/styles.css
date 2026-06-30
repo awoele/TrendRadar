@@ -245,14 +245,12 @@ td {
 }
 
 .rank-list,
-.failure-list,
-.report-list {
+.failure-list {
   display: grid;
   gap: 10px;
 }
 
 .rank-item,
-.report-item,
 .failure-item,
 .empty {
   border: 1px solid var(--line);
@@ -269,14 +267,13 @@ td {
 }
 
 .rank-item strong,
-.report-item strong {
+.rank-item strong {
   display: block;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .rank-item span,
-.report-item span,
 .empty {
   color: var(--muted);
   font-size: 13px;
@@ -297,15 +294,6 @@ td {
   border-color: rgba(190, 18, 60, 0.25);
   background: rgba(190, 18, 60, 0.05);
   font-weight: 720;
-}
-
-.report-item {
-  display: block;
-  text-decoration: none;
-}
-
-.report-item:hover {
-  border-color: var(--teal);
 }
 
 .status-band.bad {

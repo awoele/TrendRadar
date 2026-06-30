@@ -9,21 +9,11 @@ on:
       - "config/config.yaml"
       - "config/frequency_words.txt"
       - "data/imports/**"
-      - "requirements.txt"
       - "scripts/prepare_pages_artifact.py"
-      - "trendradar/**"
       - "web/config-panel/**"
       - "web/content-panel/**"
       - "web/stats-panel/**"
-  schedule:
-    # Runs hourly. GitHub schedules are best-effort and may be delayed.
-    - cron: "17 * * * *"
   workflow_dispatch:
-    inputs:
-      keep_days:
-        description: "How many recent report days to publish"
-        required: false
-        default: "7"
 
 concurrency:
   group: free-pages-${{ github.ref_name }}
@@ -35,9 +25,9 @@ permissions:
   id-token: write
 
 jobs:
-  crawl-and-publish:
+  publish-content:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -52,51 +42,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
 
       - name: Verify required files
         run: |
-          test -f config/config.yaml
-          test -f config/frequency_words.txt
-
-      - name: Run crawler
-        env:
-          GITHUB_ACTIONS: "true"
-          STORAGE_BACKEND: "local"
-          STORAGE_HTML_ENABLED: "true"
-          STORAGE_TXT_ENABLED: "true"
-          ENABLE_NOTIFICATION: "false"
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
-          WEWORK_WEBHOOK_URL: ${{ secrets.WEWORK_WEBHOOK_URL }}
-          WEWORK_MSG_TYPE: ${{ secrets.WEWORK_MSG_TYPE }}
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER }}
-          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          NTFY_SERVER_URL: ${{ secrets.NTFY_SERVER_URL }}
-          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
-          BARK_URL: ${{ secrets.BARK_URL }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: python -m trendradar
+          test -d data/imports
+          test -d web/content-panel
+          test -d web/stats-panel
+          test -d web/config-panel
 
       - name: Prepare public artifact
-        env:
-          KEEP_DAYS: ${{ github.event.inputs.keep_days }}
-        run: |
-          if [ -z "$KEEP_DAYS" ]; then
-            KEEP_DAYS=7
-          fi
-          python scripts/prepare_pages_artifact.py --source output --dest public --keep-days "$KEEP_DAYS"
+        run: python scripts/prepare_pages_artifact.py --source output --dest public
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -16,8 +16,8 @@ if (!(Test-Path -LiteralPath $python)) {
 
 Push-Location $root
 try {
-    & $python -m unittest tests.test_prepare_pages_artifact
-    & $python scripts/prepare_pages_artifact.py --source output --dest public --keep-days 7
+    & $python -m unittest tests.test_prepare_pages_artifact tests.test_content_panel_assets
+    & $python scripts/prepare_pages_artifact.py --source output --dest public
 
     $remote = git remote get-url origin 2>$null
     if (!$remote) {
@@ -36,9 +36,17 @@ try {
         "config/frequency_words.txt",
         "docs/free-public-github-pages.md",
         "docs/superpowers/plans/2026-06-29-github-pages-free-public.md",
+        "local-ensure-services.ps1",
+        "local-health-check.ps1",
         "local-publish-free-pages.ps1",
+        "local-register-longterm.ps1",
+        "local-stop-all.ps1",
         "scripts/prepare_pages_artifact.py",
-        "tests/test_prepare_pages_artifact.py"
+        "tests/test_content_panel_assets.py",
+        "tests/test_prepare_pages_artifact.py",
+        "web/stats-panel/app.js",
+        "web/stats-panel/index.html",
+        "web/stats-panel/styles.css"
     )
 
     if ($Stage -or $Commit -or $Push) {

@@ -7,7 +7,45 @@ from scripts.prepare_pages_artifact import prepare_pages_artifact
 
 
 class PreparePagesArtifactTests(unittest.TestCase):
-    def test_writes_content_home_and_copies_recent_html_to_reports(self):
+    def test_builds_content_only_site_without_report_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "missing-output"
+            dest = root / "public"
+            import_source = root / "imports"
+            import_source.mkdir()
+
+            (import_source / "cases.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,cover_url,author,published_at,like_count,comment_count,collect_count,share_count,hot_score,recent_hot_score,case_type,built_thing,tool_stack,target_audience,hook,content_value,risk_flag,description",
+                        "douyin,AI 做作品集,https://www.douyin.com/video/1,https://img.example.com/douyin.jpg,作者,2026-06-15,100,2,3,4,900,450,真案例,网站,Codex,设计师,几小时上线,有结果,,搜索描述",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            manifest = prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
+
+            self.assertFalse((dest / "reports").exists())
+            self.assertEqual(manifest["reports"], [])
+            self.assertEqual(manifest["latest"], "index.html")
+            self.assertEqual(manifest["content_panel"], "content/index.html")
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            self.assertEqual(content["total"], 1)
+            self.assertEqual(content["platforms"], [{"id": "douyin-topic", "name": "抖音选题", "count": 1}])
+
+            stats = json.loads((dest / "stats.json").read_text(encoding="utf-8"))
+            self.assertEqual(stats["latest_report"], None)
+            self.assertEqual(stats["totals"]["reports"], 0)
+            self.assertEqual(stats["totals"]["content_items"], 1)
+            self.assertEqual(
+                stats["platforms"],
+                [{"id": "douyin-topic", "name": "抖音选题", "count": 1, "crawled": 1, "matched": 1}],
+            )
+
+    def test_writes_content_home_without_copying_report_html(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "output"
@@ -30,14 +68,12 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertIn('url=content/', home_html)
             self.assertIn('window.location.replace("content/")', home_html)
             self.assertNotIn("<html>latest</html>", home_html)
-            self.assertTrue((dest / "reports" / "2026-06-29" / "当日汇总.html").exists())
-            self.assertTrue((dest / "reports" / "2026-06-28" / "13-00.html").exists())
-            self.assertFalse((dest / "reports" / "2026-06-20" / "old.html").exists())
+            self.assertFalse((dest / "reports").exists())
             self.assertFalse((dest / "2026-06-29" / "txt" / "13-00.txt").exists())
 
             manifest_data = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest_data["latest"], "index.html")
-            self.assertEqual(len(manifest_data["reports"]), 2)
+            self.assertEqual(manifest_data["reports"], [])
             self.assertEqual(manifest, manifest_data)
 
     def test_copies_config_panel_assets_when_present(self):
@@ -65,14 +101,16 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual((dest / "config" / "app.js").read_text(encoding="utf-8"), "console.log('config')")
             self.assertEqual(manifest["config_panel"], "config/index.html")
 
-    def test_generates_public_stats_json_from_reports_and_txt_snapshot(self):
+    def test_generates_public_stats_json_from_imported_content(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "output"
             dest = root / "public"
+            import_source = root / "imports"
 
             (source / "2026-06-29" / "html").mkdir(parents=True)
             (source / "2026-06-29" / "txt").mkdir(parents=True)
+            import_source.mkdir()
 
             latest_html = """
             <html>
@@ -117,21 +155,32 @@ class PreparePagesArtifactTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            (import_source / "cases.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,case_type,built_thing,tool_stack,content_value,description",
+                        "douyin,AI 做作品集,https://www.douyin.com/video/1,真案例,网站,Codex,有结果,搜索描述",
+                        "xiaohongshu,Codex 工作流,https://www.xiaohongshu.com/explore/1,教程,自动化流程,Codex,可复刻,小红书描述",
+                    ]
+                ),
+                encoding="utf-8",
+            )
 
-            manifest = prepare_pages_artifact(source, dest, keep_days=7, import_source=root / "missing-imports")
+            manifest = prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
 
             stats = json.loads((dest / "stats.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["stats_json"], "stats.json")
-            self.assertEqual(stats["latest_report"]["path"], "index.html")
-            self.assertEqual(stats["totals"]["reports"], 1)
-            self.assertEqual(stats["totals"]["crawled_titles"], 5)
-            self.assertEqual(stats["totals"]["matched_titles"], 3)
-            self.assertEqual(stats["platforms"][0]["id"], "sspai")
-            self.assertEqual(stats["platforms"][0]["crawled"], 2)
+            self.assertEqual(stats["latest_report"], None)
+            self.assertEqual(stats["totals"]["reports"], 0)
+            self.assertEqual(stats["totals"]["content_items"], 2)
+            self.assertEqual(stats["totals"]["crawled_titles"], 2)
+            self.assertEqual(stats["totals"]["matched_titles"], 2)
+            self.assertEqual(stats["platforms"][0]["id"], "douyin-topic")
+            self.assertEqual(stats["platforms"][0]["crawled"], 1)
             self.assertEqual(stats["platforms"][0]["matched"], 1)
-            self.assertEqual(stats["keywords"][0]["name"], "vibe coding")
+            self.assertEqual(stats["keywords"][0]["name"], "Codex")
             self.assertEqual(stats["keywords"][0]["matched"], 2)
-            self.assertEqual(stats["failed_platforms"], ["xhs"])
+            self.assertEqual(stats["failed_platforms"], [])
             self.assertIn("generated_at", stats)
 
     def test_copies_stats_panel_assets_when_present(self):

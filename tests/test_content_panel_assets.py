@@ -64,6 +64,26 @@ class ContentPanelAssetTests(unittest.TestCase):
                 self.assertNotIn('href="../index.html"', html)
                 self.assertNotIn("打开最新报告", html)
                 self.assertNotIn("查看热榜", html)
+                self.assertNotIn("最近报告", html)
+
+        stats_app = Path("web/stats-panel/app.js").read_text(encoding="utf-8")
+        stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
+        self.assertNotIn("report.path", stats_app)
+        self.assertNotIn("reportRows", stats_app)
+        self.assertNotIn(".report-item", stats_css)
+        self.assertNotIn(".report-list", stats_css)
+
+    def test_public_publish_does_not_run_legacy_report_crawler(self):
+        workflow = Path(".github/workflows/free-pages.yml").read_text(encoding="utf-8")
+        register_script = Path("local-register-longterm.ps1").read_text(encoding="utf-8")
+        ensure_script = Path("local-ensure-services.ps1").read_text(encoding="utf-8")
+
+        self.assertNotIn("python -m trendradar", workflow)
+        self.assertNotIn("Run crawler", workflow)
+        self.assertNotIn("local-run-once.ps1", register_script)
+        self.assertNotIn("Run TrendRadar crawler", register_script)
+        self.assertNotIn("TrendRadar report server", ensure_script)
+        self.assertNotIn("local-serve-output.ps1", ensure_script)
 
 
 if __name__ == "__main__":

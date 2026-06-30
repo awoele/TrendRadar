@@ -4,7 +4,7 @@ import html
 import json
 import re
 import shutil
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -216,6 +216,9 @@ def _parse_latest_report_stats(html_path: Path) -> dict:
 
 
 def _latest_txt_snapshot(source: Path):
+    if not source.exists():
+        return None
+
     candidates = []
     for child in source.iterdir():
         if not child.is_dir():
@@ -469,51 +472,66 @@ def _build_public_content(source: Path, import_source: Path = Path("data/imports
     return content
 
 
-def _build_public_stats(source: Path, reports: list) -> dict:
-    latest_stats = _parse_latest_report_stats(source / "index.html")
-    platforms = _parse_txt_platform_counts(_latest_txt_snapshot(source))
-    known_platforms = {}
+def _build_content_keyword_stats(content: dict) -> list:
+    keywords = {}
+    platform_counts = {}
 
-    for platform in platforms:
-        known_platforms[platform["id"]] = platform
-        known_platforms[platform["name"]] = platform
+    for item in content.get("items", []):
+        labels = []
+        for key in ("case_type", "built_thing", "tool_stack", "hook", "content_value", "risk_flag"):
+            labels.extend(_topic_labels(item, key))
 
-    for platform_name, matched in latest_stats["matched_by_platform"].items():
-        platform = known_platforms.get(platform_name)
-        if platform is None:
-            platform = {
-                "id": platform_name,
-                "name": platform_name,
-                "crawled": 0,
-                "matched": 0,
+        platform_name = item.get("platform_name") or item.get("platform_id") or "未知平台"
+        for label in dict.fromkeys(label for label in labels if label):
+            keywords[label] = keywords.get(label, 0) + 1
+            platform_counts.setdefault(label, {})
+            platform_counts[label][platform_name] = platform_counts[label].get(platform_name, 0) + 1
+
+    return [
+        {
+            "name": name,
+            "matched": count,
+            "platforms": [
+                {"name": platform_name, "matched": platform_count}
+                for platform_name, platform_count in sorted(
+                    platform_counts.get(name, {}).items(),
+                    key=lambda item: (-item[1], item[0]),
+                )
+            ],
+        }
+        for name, count in sorted(keywords.items(), key=lambda item: (-item[1], item[0].lower()))
+    ]
+
+
+def _build_public_stats(content: dict, reports: list | None = None) -> dict:
+    reports = reports or []
+    platforms = []
+    for platform in content.get("platforms", []):
+        count = int(platform.get("count", 0) or 0)
+        platforms.append(
+            {
+                "id": platform.get("id") or platform.get("name") or "unknown",
+                "name": platform.get("name") or platform.get("id") or "未知平台",
+                "count": count,
+                "crawled": count,
+                "matched": count,
             }
-            platforms.append(platform)
-            known_platforms[platform_name] = platform
-        platform["matched"] += matched
+        )
 
-    crawled_titles = latest_stats["crawled_titles"]
-    if crawled_titles is None:
-        crawled_titles = sum(platform["crawled"] for platform in platforms)
-
-    matched_titles = latest_stats["matched_titles"]
-    if matched_titles is None:
-        matched_titles = sum(keyword["matched"] for keyword in latest_stats["keywords"])
-
+    content_total = int(content.get("total", 0) or 0)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "latest_report": {
-            "path": "index.html",
-            "title": "latest",
-        },
+        "latest_report": None,
         "totals": {
             "reports": len(reports),
-            "crawled_titles": crawled_titles,
-            "matched_titles": matched_titles,
-            "failed_platforms": len(latest_stats["failed_platforms"]),
+            "content_items": content_total,
+            "crawled_titles": content_total,
+            "matched_titles": content_total,
+            "failed_platforms": 0,
         },
         "platforms": platforms,
-        "keywords": latest_stats["keywords"],
-        "failed_platforms": latest_stats["failed_platforms"],
+        "keywords": _build_content_keyword_stats(content),
+        "failed_platforms": [],
         "reports": reports,
     }
 
@@ -533,9 +551,6 @@ def prepare_pages_artifact(
     stats_panel_source = Path(stats_panel_source)
     content_panel_source = Path(content_panel_source)
     import_source = Path(import_source)
-
-    if not (source / "index.html").exists():
-        raise FileNotFoundError(f"Missing public report: {source / 'index.html'}")
 
     if dest.exists():
         shutil.rmtree(dest)
@@ -565,46 +580,13 @@ def prepare_pages_artifact(
         if (content_panel_dest / "index.html").exists():
             content_panel = "content/index.html"
 
-    dated_dirs = []
-    for child in source.iterdir():
-        if not child.is_dir():
-            continue
-        parsed = _date_dir(child)
-        if parsed:
-            dated_dirs.append((parsed, child))
-
-    cutoff = None
-    if dated_dirs:
-        latest_date = max(item[0] for item in dated_dirs)
-        cutoff = latest_date - timedelta(days=max(keep_days - 1, 0))
-
     reports = []
-    for report_date, date_dir in sorted(dated_dirs, reverse=True):
-        if cutoff and report_date < cutoff:
-            continue
-
-        html_dir = date_dir / "html"
-        if not html_dir.exists():
-            continue
-
-        for html_file in sorted(html_dir.glob("*.html")):
-            relative_dest = Path("reports") / date_dir.name / html_file.name
-            copied = _copy_file(html_file, dest / relative_dest)
-            reports.append(
-                {
-                    "date": date_dir.name,
-                    "title": html_file.stem,
-                    "path": relative_dest.as_posix(),
-                    "bytes": copied["bytes"],
-                }
-            )
-
-    stats = _build_public_stats(source, reports)
+    content = _build_public_content(source, import_source)
+    stats = _build_public_stats(content, reports)
     (dest / "stats.json").write_text(
         json.dumps(stats, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    content = _build_public_content(source, import_source)
     (dest / "content.json").write_text(
         json.dumps(content, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -638,7 +620,7 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = prepare_pages_artifact(args.source, args.dest, args.keep_days)
-    print(f"Prepared {len(manifest['reports'])} reports in {args.dest}")
+    print(f"Prepared content-only Pages artifact in {args.dest}")
 
 
 if __name__ == "__main__":

@@ -33,26 +33,13 @@ function Register-TrendRadarTask {
         -Force | Out-Null
 }
 
-$crawlerScript = Join-Path $root "local-run-once.ps1"
 $keepAliveScript = Join-Path $root "local-ensure-services.ps1"
 
-foreach ($legacyTask in "TrendRadar-ReportServer", "TrendRadar-MCPServer") {
+foreach ($legacyTask in "TrendRadar-Crawler", "TrendRadar-ReportServer", "TrendRadar-MCPServer") {
     if (Get-ScheduledTask -TaskName $legacyTask -ErrorAction SilentlyContinue) {
         Unregister-ScheduledTask -TaskName $legacyTask -Confirm:$false
     }
 }
-
-$crawlerTrigger = New-ScheduledTaskTrigger `
-    -Once `
-    -At (Get-Date).AddMinutes(30) `
-    -RepetitionInterval (New-TimeSpan -Minutes 30) `
-    -RepetitionDuration (New-TimeSpan -Days 3650)
-
-Register-TrendRadarTask `
-    -Name "TrendRadar-Crawler" `
-    -ScriptPath $crawlerScript `
-    -Trigger $crawlerTrigger `
-    -Description "Run TrendRadar crawler every 30 minutes."
 
 $logonTrigger = New-ScheduledTaskTrigger -AtLogOn
 $keepAliveTrigger = New-ScheduledTaskTrigger `
@@ -78,7 +65,7 @@ Register-ScheduledTask `
     -Action $action `
     -Trigger @($logonTrigger, $keepAliveTrigger) `
     -Settings $settings `
-    -Description "Keep TrendRadar report and MCP services running." `
+    -Description "Keep TrendRadar MCP service running." `
     -Force | Out-Null
 
 & $keepAliveScript
