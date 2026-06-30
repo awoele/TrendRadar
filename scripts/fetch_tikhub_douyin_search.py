@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-API_URL = "https://api.tikhub.io/api/v1/douyin/search/fetch_video_search_v2"
+API_URL = "https://api.tikhub.io/api/v1/douyin/search/fetch_general_search_v1"
 SOURCE_NAME = "tikhub:douyin_keyword_search"
 CSV_FIELDS = [
     "platform",

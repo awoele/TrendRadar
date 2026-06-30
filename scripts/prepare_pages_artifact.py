@@ -339,6 +339,8 @@ def _imported_search_content(import_source: Path) -> dict:
     seen_urls = set()
 
     for csv_file in sorted(import_source.glob("*.csv")):
+        if _is_smoke_import(csv_file):
+            continue
         with csv_file.open("r", encoding="utf-8-sig", newline="") as handle:
             for row in csv.DictReader(handle):
                 platform = (row.get("platform") or "").strip().lower()
@@ -427,6 +429,10 @@ def _collection_window_from_name(file_name: str) -> tuple[str, str]:
     return "", ""
 
 
+def _is_smoke_import(path: Path) -> bool:
+    return "smoke" in path.stem.lower()
+
+
 def _collection_platform_name(platform: str) -> str:
     return {
         "douyin": "抖音",
@@ -476,6 +482,8 @@ def _collection_runs(import_source: Path) -> list[dict]:
 
     runs = []
     for csv_file in sorted(import_source.glob("*.csv")):
+        if _is_smoke_import(csv_file):
+            continue
         row_count = 0
         platform_counts = {}
         keywords = set()

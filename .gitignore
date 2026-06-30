@@ -1,6 +1,7 @@
 .venv/
 .tmp/
 .env.local
+data/imports/*smoke*.csv
 __pycache__/
 *.pyc
 

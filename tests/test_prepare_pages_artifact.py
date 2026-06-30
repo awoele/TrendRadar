@@ -28,6 +28,15 @@ class PreparePagesArtifactTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            (import_source / "03_douyin_tikhub_keyword_search_smoke.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,keyword,source,published_at",
+                        "douyin,Smoke,https://www.douyin.com/video/smoke,vibecoding,tikhub:douyin_keyword_search,2026-06-30",
+                    ]
+                ),
+                encoding="utf-8",
+            )
             updated_at = datetime(2026, 6, 30, 16, 0, 0, tzinfo=timezone.utc).timestamp()
             os.utime(csv_path, (updated_at, updated_at))
 
@@ -37,6 +46,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
             runs = content["collection_runs"]
 
             self.assertEqual(len(runs), 1)
+            self.assertEqual(content["total"], 2)
             self.assertEqual(runs[0]["file"], "03_douyin_tikhub_vibecoding_2026-06-16_2026-06-30.csv")
             self.assertEqual(runs[0]["start_date"], "2026-06-16")
             self.assertEqual(runs[0]["end_date"], "2026-06-30")

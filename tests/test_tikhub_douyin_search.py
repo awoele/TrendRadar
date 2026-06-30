@@ -105,10 +105,10 @@ class TikHubDouyinSearchTests(unittest.TestCase):
         self.assertEqual(content["items"][0]["platform_id"], "douyin-search")
         self.assertEqual(content["items"][0]["source"], SOURCE_NAME)
 
-    def test_request_body_uses_keyword_search_defaults_not_hot_search(self):
+    def test_request_body_uses_general_keyword_search_defaults_not_hot_search(self):
         body = build_request_body(keyword="vibe coding", publish_time="7")
 
-        self.assertEqual(API_URL, "https://api.tikhub.io/api/v1/douyin/search/fetch_video_search_v2")
+        self.assertEqual(API_URL, "https://api.tikhub.io/api/v1/douyin/search/fetch_general_search_v1")
         self.assertEqual(body["keyword"], "vibe coding")
         self.assertEqual(body["publish_time"], "7")
         self.assertEqual(body["content_type"], "0")
