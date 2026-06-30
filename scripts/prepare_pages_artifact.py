@@ -95,7 +95,25 @@ def _topic_labels(row: dict, key: str) -> list[str]:
     return [value.strip() for value in re.split(r"[、,，;；|]", row.get(key) or "") if value.strip()]
 
 
+def _is_pronunciation_noise(row: dict) -> bool:
+    text = " ".join(
+        (row.get(field_name) or "")
+        for field_name in ("title", "description", "content_value", "hook")
+    ).lower()
+    return any(
+        pattern in text
+        for pattern in (
+            "英语发音",
+            "发音怎么区分",
+            "发音区别",
+        )
+    )
+
+
 def _is_relevant_topic(row: dict) -> bool:
+    if _is_pronunciation_noise(row):
+        return False
+
     case_type = (row.get("case_type") or "").strip()
     built_thing = _topic_labels(row, "built_thing")
     content_value = _topic_labels(row, "content_value")

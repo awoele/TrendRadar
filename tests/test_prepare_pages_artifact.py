@@ -464,6 +464,30 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(content["total"], 1)
             self.assertEqual(content["items"][0]["title"], "保留真案例")
 
+    def test_skips_english_pronunciation_noise_from_douyin_keyword_imports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            import_source = root / "imports"
+
+            import_source.mkdir()
+            (import_source / "douyin.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,case_type,built_thing,tool_stack,content_value,description,source,keyword",
+                        "douyin,belt和bolt的发音怎么区分？ 分不清的小伙伴快点学起来！#英语发音,https://www.douyin.com/video/noise,教程,求职/学习工具,Bolt,content_marketing,keyword=Bolt; belt和bolt的发音怎么区分？ 分不清的小伙伴快点学起来！#英语发音,tikhub:douyin_keyword_search,Bolt",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, keep_days=7, import_source=import_source)
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            self.assertEqual(content["total"], 0)
+            self.assertEqual(content["items"], [])
+
     def test_copies_content_panel_assets_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
