@@ -350,11 +350,16 @@ def _imported_search_content(import_source: Path) -> dict:
                     continue
                 seen_urls.add(url)
 
+                source = (row.get("source") or "").strip()
+                if source == "tikhub:douyin_hot_search":
+                    continue
+
                 is_topic_import = _is_topic_import(row)
                 if is_topic_import and not _is_relevant_topic(row):
                     continue
 
                 platform_id, platform_name = _import_platform(platform, is_topic_import)
+                source_type = "topic_import" if is_topic_import else "search_import"
                 platforms.setdefault(
                     platform_id,
                     {
@@ -384,9 +389,10 @@ def _imported_search_content(import_source: Path) -> dict:
                                 "poster",
                             ),
                         ),
-                        "source_type": "topic_import" if is_topic_import else "search_import",
+                        "source_type": source_type,
                         "author": (row.get("author") or "").strip(),
                         "description": (row.get("description") or "").strip(),
+                        "source": source,
                         "published_at": (row.get("published_at") or "").strip(),
                         "likes": _first_nonempty(row, ("likes", "like_count")),
                         "comments": _first_nonempty(row, ("comments", "comment_count")),

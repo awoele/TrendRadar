@@ -83,9 +83,30 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertNotIn("local-run-once.ps1", publish_script)
         self.assertNotIn("local-serve-output.ps1", publish_script)
         self.assertNotIn("MCP", publish_script)
-        self.assertNotIn("TIKHUB", collect_script.upper())
-        self.assertIn("collect_authenticated.cjs", collect_script)
+        self.assertIn("fetch_tikhub_douyin_search.py", collect_script)
+        self.assertNotIn("fetch_hot_search_result", collect_script)
+        self.assertNotIn("collect_authenticated.cjs", collect_script)
         self.assertIn("$KeywordLimit", collect_script)
+
+    def test_xiaohongshu_collection_uses_skill_and_douyin_uses_tikhub_keyword_search(self):
+        collect_script = Path("local-collect-xhs-douyin.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("scripts\\import_redfox_xhs.py", collect_script)
+        self.assertIn("xiaohongshu-crawler", collect_script)
+        self.assertIn("fetch_tikhub_douyin_search.py", collect_script)
+        self.assertIn("tikhub_douyin_search_raw", collect_script)
+        self.assertIn("Resolve-TikHubPublishTime", collect_script)
+        self.assertIn("$tikhubPublishTime", collect_script)
+        self.assertNotIn('"--platform", "both"', collect_script)
+        self.assertIn("02_xhs_skill_vibecoding", collect_script)
+        self.assertIn("03_douyin_tikhub_vibecoding", collect_script)
+
+    def test_xiaohongshu_skill_path_is_derived_without_chinese_literal(self):
+        collect_script = Path("local-collect-xhs-douyin.ps1").read_text(encoding="utf-8")
+
+        self.assertNotIn(r"D:\Documents\热点库", collect_script)
+        self.assertIn("$workspaceRoot = Split-Path -Parent $root", collect_script)
+        self.assertIn("$defaultXhsSkillScript", collect_script)
 
     def test_config_panel_only_exposes_xhs_and_douyin_platforms(self):
         app_js = Path("web/config-panel/app.js").read_text(encoding="utf-8")

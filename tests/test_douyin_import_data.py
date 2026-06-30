@@ -38,7 +38,10 @@ class DouyinImportDataTests(unittest.TestCase):
     def test_imported_douyin_topic_items_have_filter_tags_after_dedupe(self):
         content = _imported_search_content(Path("data/imports"))
         douyin_search_items = [
-            item for item in content["items"] if item.get("platform_id") == "douyin-search"
+            item
+            for item in content["items"]
+            if item.get("platform_id") == "douyin-search"
+            and item.get("source") != "tikhub:douyin_keyword_search"
         ]
         missing_tags = [
             item

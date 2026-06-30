@@ -36,6 +36,7 @@ try {
         "docs/free-public-github-pages.md",
         "local-collect-xhs-douyin.ps1",
         "local-publish-free-pages.ps1",
+        "scripts/fetch_tikhub_douyin_search.py",
         "scripts/import_redfox_xhs.py",
         "scripts/prepare_pages_artifact.py",
         "tests",

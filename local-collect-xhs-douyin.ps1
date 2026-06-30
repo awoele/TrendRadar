@@ -10,15 +10,16 @@ param(
     [int]$WaitLoginMs = 0,
     [int]$KeywordLimit = 0,
     [string]$AgentsRoot = "D:\Documents\agents",
+    [string]$XhsSkillScript = "",
     [switch]$NoPrompt
 )
 
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$workspaceRoot = Split-Path -Parent $root
+$defaultXhsSkillScript = Join-Path $workspaceRoot "skills\xiaohongshu-crawler\scripts\crawl_xhs.py"
 $python = "C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-$node = "C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
-$nodeModules = "C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\node_modules"
 
 function Resolve-DateWindow {
     param([string]$StartValue, [string]$EndValue, [int]$LookbackDays)
@@ -31,6 +32,18 @@ function Resolve-DateWindow {
         $StartValue = $endDate.AddDays(-1 * $LookbackDays).ToString("yyyy-MM-dd")
     }
     return @($StartValue, $EndValue)
+}
+
+function Resolve-TikHubPublishTime {
+    param([int]$LookbackDays)
+
+    if ($LookbackDays -le 1) {
+        return "1"
+    }
+    if ($LookbackDays -le 7) {
+        return "7"
+    }
+    return "180"
 }
 
 function Get-SearchKeywords {
@@ -77,84 +90,119 @@ function Get-SearchKeywords {
 if (!(Test-Path -LiteralPath $python)) {
     throw "Runtime Python not found: $python"
 }
-if (!(Test-Path -LiteralPath $node)) {
-    throw "Runtime Node.js not found: $node"
-}
 
 $dateWindow = Resolve-DateWindow -StartValue $Since -EndValue $Until -LookbackDays $Days
 $Since = $dateWindow[0]
 $Until = $dateWindow[1]
+$tikhubPublishTime = Resolve-TikHubPublishTime -LookbackDays $Days
 
 $agentsRootPath = (Resolve-Path -LiteralPath $AgentsRoot).Path
-$collectScript = Join-Path $agentsRootPath "scripts\collect_authenticated.cjs"
-if (!(Test-Path -LiteralPath $collectScript)) {
-    throw "Authenticated collector not found: $collectScript"
+$xhsImporter = Join-Path $root "scripts\import_redfox_xhs.py"
+if (!(Test-Path -LiteralPath $xhsImporter)) {
+    throw "Xiaohongshu skill importer not found: $xhsImporter"
 }
+
+$douyinSearchScript = Join-Path $root "scripts\fetch_tikhub_douyin_search.py"
+if (!(Test-Path -LiteralPath $douyinSearchScript)) {
+    throw "TikHub Douyin keyword search script not found: $douyinSearchScript"
+}
+
+if (!$XhsSkillScript) {
+    $XhsSkillScript = $defaultXhsSkillScript
+}
+if (!(Test-Path -LiteralPath $XhsSkillScript)) {
+    throw "xiaohongshu-crawler skill script not found: $XhsSkillScript"
+}
+$xhsSkillScriptPath = (Resolve-Path -LiteralPath $XhsSkillScript).Path
 
 $keywords = Get-SearchKeywords -Path (Join-Path $root "config\frequency_words.txt") -Limit $KeywordLimit
-$rawCsv = Join-Path $agentsRootPath ("data\trenderadar_xhs_douyin_raw_{0}_{1}.csv" -f $Since, $Until)
-$classifiedDir = Join-Path $agentsRootPath ("out\trenderadar_xhs_douyin_{0}_{1}" -f $Since, $Until)
-$importCsv = Join-Path $root ("data\imports\02_xhs_douyin_vibecoding_{0}_{1}.csv" -f $Since, $Until)
+$tmpDir = Join-Path $root ".tmp"
+$xhsRawJson = Join-Path $tmpDir ("xhs_skill_raw_{0}_{1}.json" -f $Since, $Until)
+$xhsRawCsv = Join-Path $tmpDir ("xhs_skill_raw_{0}_{1}.csv" -f $Since, $Until)
+$xhsClassifiedDir = Join-Path $tmpDir ("xhs_skill_classified_{0}_{1}" -f $Since, $Until)
+$xhsImportCsv = Join-Path $root ("data\imports\02_xhs_skill_vibecoding_{0}_{1}.csv" -f $Since, $Until)
+$douyinRawCsv = Join-Path $tmpDir ("tikhub_douyin_search_raw_{0}_{1}.csv" -f $Since, $Until)
+$douyinClassifiedDir = Join-Path $tmpDir ("tikhub_douyin_search_classified_{0}_{1}" -f $Since, $Until)
+$douyinImportCsv = Join-Path $root ("data\imports\03_douyin_tikhub_vibecoding_{0}_{1}.csv" -f $Since, $Until)
 
-$env:NODE_PATH = "$nodeModules;$nodeModules\.pnpm\node_modules"
 $env:PYTHONPATH = Join-Path $agentsRootPath "src"
 
-$collectArgs = @(
-    $collectScript,
-    "--platform", "both",
-    "--keywords", $keywords,
-    "--out", $rawCsv,
-    "--since", $Since,
-    "--until", $Until,
-    "--today", $Until,
-    "--max", [string]$Max,
-    "--search-only",
-    "--scrolls", [string]$Scrolls,
-    "--search-wait-ms", [string]$SearchWaitMs,
-    "--scroll-wait-ms", [string]$ScrollWaitMs,
-    "--keyword-delay-ms", [string]$KeywordDelayMs
-)
-if ($WaitLoginMs -gt 0) {
-    $collectArgs += @("--wait-login-ms", [string]$WaitLoginMs)
-}
-if ($NoPrompt) {
-    $collectArgs += "--no-prompt"
+& $python $xhsImporter `
+    --keywords $keywords `
+    --start-date $Since `
+    --end-date $Until `
+    --skill-script $xhsSkillScriptPath `
+    --classifier-root $agentsRootPath `
+    --raw-json-out $xhsRawJson `
+    --raw-csv-out $xhsRawCsv `
+    --classified-out-dir $xhsClassifiedDir `
+    --import-out $xhsImportCsv
+if ($LASTEXITCODE -ne 0) {
+    throw "Xiaohongshu skill collector failed with exit code $LASTEXITCODE"
 }
 
-Push-Location $agentsRootPath
-try {
-    & $node @collectArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Xiaohongshu/Douyin collector failed with exit code $LASTEXITCODE"
+if (Test-Path -LiteralPath $xhsImportCsv) {
+    $xhsRows = @(Import-Csv -LiteralPath $xhsImportCsv)
+    if ($xhsRows.Count -eq 0) {
+        Remove-Item -LiteralPath $xhsImportCsv -Force
+        Write-Output "No Xiaohongshu skill topics found; skipped XHS import update."
     }
-
-    & $python -m vibecase_agent.cli `
-        --input $rawCsv `
-        --out $classifiedDir `
-        --no-web `
-        --since $Since `
-        --until $Until `
-        --today $Until
-    if ($LASTEXITCODE -ne 0) {
-        throw "Topic classifier failed with exit code $LASTEXITCODE"
+    else {
+        Write-Output "Imported Xiaohongshu skill topics: $xhsImportCsv"
     }
 }
-finally {
-    Pop-Location
+
+& $python $douyinSearchScript `
+    --keywords $keywords `
+    --since $Since `
+    --until $Until `
+    --today $Until `
+    --max-per-keyword $Max `
+    --publish-time $tikhubPublishTime `
+    --out $douyinRawCsv
+if ($LASTEXITCODE -ne 0) {
+    throw "TikHub Douyin keyword search failed with exit code $LASTEXITCODE"
 }
 
-$caseRadarCsv = Join-Path $classifiedDir "case_radar.csv"
-if (!(Test-Path -LiteralPath $caseRadarCsv)) {
-    throw "Classifier did not create case_radar.csv: $caseRadarCsv"
+$douyinRawRows = @()
+if (Test-Path -LiteralPath $douyinRawCsv) {
+    $douyinRawRows = @(Import-Csv -LiteralPath $douyinRawCsv)
 }
 
-$caseRows = @(Import-Csv -LiteralPath $caseRadarCsv)
-if ($caseRows.Count -gt 0) {
-    Copy-Item -LiteralPath $caseRadarCsv -Destination $importCsv -Force
-    Write-Output "Imported tagged topics: $importCsv"
+if ($douyinRawRows.Count -gt 0) {
+    Push-Location $agentsRootPath
+    try {
+        & $python -m vibecase_agent.cli `
+            --input $douyinRawCsv `
+            --out $douyinClassifiedDir `
+            --no-web `
+            --since $Since `
+            --until $Until `
+            --today $Until
+        if ($LASTEXITCODE -ne 0) {
+            throw "Topic classifier failed with exit code $LASTEXITCODE"
+        }
+    }
+    finally {
+        Pop-Location
+    }
+
+    $caseRadarCsv = Join-Path $douyinClassifiedDir "case_radar.csv"
+    if (!(Test-Path -LiteralPath $caseRadarCsv)) {
+        throw "Classifier did not create case_radar.csv: $caseRadarCsv"
+    }
+
+    $caseRows = @(Import-Csv -LiteralPath $caseRadarCsv)
+    if ($caseRows.Count -gt 0) {
+        Copy-Item -LiteralPath $caseRadarCsv -Destination $douyinImportCsv -Force
+        Write-Output "Imported TikHub Douyin keyword topics: $douyinImportCsv"
+    }
+    else {
+        Write-Output "No TikHub Douyin tagged topics found; skipped Douyin import update."
+    }
 }
 else {
-    Write-Output "No tagged topics found; skipped data/imports update."
+    Write-Output "No TikHub Douyin keyword rows found; skipped Douyin import update."
 }
 
 Push-Location $root

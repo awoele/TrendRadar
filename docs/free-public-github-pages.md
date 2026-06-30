@@ -42,13 +42,20 @@ powershell -ExecutionPolicy Bypass -File "D:\Documents\热点库\TrendRadar\loca
 这条命令会：
 
 1. 读取 `config/frequency_words.txt` 里的关键词。
-2. 调用 `D:\Documents\agents\scripts\collect_authenticated.cjs` 打开本地浏览器。
-3. 只搜索小红书和抖音。
+2. 调用 `D:\Documents\热点库\skills\xiaohongshu-crawler\scripts\crawl_xhs.py` 抓小红书。
+3. 调用 `scripts/fetch_tikhub_douyin_search.py` 用 TikHub 抓抖音关键词搜索内容。
 4. 用 `vibecase_agent` 打标过滤。
-5. 把 `case_radar.csv` 复制进 `data/imports/`。
-6. 重新生成 `public/content.json` 和面板。
+5. 把小红书结果写入 `data/imports/02_xhs_skill_*.csv`。
+6. 把抖音 TikHub 关键词结果写入 `data/imports/03_douyin_tikhub_*.csv`。
+7. 重新生成 `public/content.json` 和面板。
 
-小红书/抖音遇到登录、扫码或安全验证时，需要在打开的浏览器里手动完成。
+小红书 skill 需要 RedFox/OpenClaw 额度；抖音 TikHub 需要本地 `.env.local` 或环境变量：
+
+```text
+TIKHUB_API_KEY=你的密钥
+```
+
+`.env.local` 已加入 `.gitignore`，不要提交。
 
 ## 发布
 
@@ -74,4 +81,4 @@ powershell -ExecutionPolicy Bypass -File "D:\Documents\热点库\TrendRadar\loca
 - Last30Days 旁路面板。
 - TikHub 抖音热榜试验。
 
-当前只保留小红书/抖音搜索内容、可配置面板、内容面板和统计面板。
+当前只保留小红书/抖音关键词搜索内容、可配置面板、内容面板和统计面板。
