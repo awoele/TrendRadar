@@ -177,10 +177,7 @@ button.secondary:hover {
 }
 
 .config-overview {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  display: block;
 }
 
 .auth-panel,
@@ -195,14 +192,18 @@ button.secondary:hover {
 
 .auth-panel {
   display: grid;
-  grid-template-columns: minmax(170px, 0.8fr) minmax(240px, 360px) auto minmax(180px, auto);
+  grid-template-columns: auto minmax(170px, 0.8fr) minmax(240px, 360px) auto minmax(180px, auto);
   gap: 12px;
   align-items: end;
   padding: 16px;
 }
 
+.auth-panel .side-menu {
+  align-self: center;
+}
+
 .auth-panel .status {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
 }
 
 .token-field {
@@ -427,5 +428,9 @@ textarea {
   .nav-links,
   .nav-links a {
     width: 100%;
+  }
+
+  .auth-panel .status {
+    grid-column: 1 / -1;
   }
 }

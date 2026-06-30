@@ -187,10 +187,23 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertNotIn("<h1", config_html)
         self.assertIn('<details class="side-menu"', config_html)
         self.assertIn('class="config-overview"', config_html)
-        self.assertLess(config_html.index("side-menu"), config_html.index("authPanel"))
+        self.assertLess(config_html.index("authPanel"), config_html.index("side-menu"))
         self.assertIn(".side-menu", config_css)
         self.assertIn(".config-overview", config_css)
         self.assertNotIn(".topbar", config_css)
+
+    def test_config_menu_is_embedded_in_auth_card(self):
+        config_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
+        config_css = Path("web/config-panel/styles.css").read_text(encoding="utf-8")
+
+        auth_start = config_html.index('class="auth-panel"')
+        auth_end = config_html.index("</section>", auth_start)
+        auth_markup = config_html[auth_start:auth_end]
+
+        self.assertIn('<details class="side-menu"', auth_markup)
+        self.assertIn(".auth-panel .side-menu", config_css)
+        self.assertNotIn("grid-template-columns: auto minmax(0, 1fr)", config_css)
+        self.assertIn("grid-template-columns: auto minmax(170px, 0.8fr) minmax(240px, 360px) auto minmax(180px, auto)", config_css)
 
     def test_public_publish_does_not_run_legacy_report_crawler_or_services(self):
         workflow = Path(".github/workflows/free-pages.yml").read_text(encoding="utf-8")
