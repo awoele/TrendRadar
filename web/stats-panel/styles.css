@@ -234,24 +234,26 @@ h2 {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   grid-template-areas:
     "platform keywords"
-    "platform health";
+    "health keywords";
   gap: 14px;
   align-items: stretch;
 }
 
 .platform-panel {
   grid-area: platform;
-  min-height: 394px;
+  min-height: 370px;
 }
 
 .keyword-panel {
   grid-area: keywords;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
 }
 
 .health-panel {
   grid-area: health;
-  align-self: start;
+  align-self: stretch;
 }
 
 .panel {
@@ -345,7 +347,7 @@ td {
 }
 
 .keyword-panel .rank-list {
-  max-height: 360px;
+  max-height: 520px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -418,12 +420,12 @@ td {
   .dashboard-grid {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "platform platform"
-      "keywords health";
+      "platform keywords"
+      "health keywords";
   }
 
   .keyword-panel .rank-list {
-    max-height: 300px;
+    max-height: 420px;
   }
 }
 
@@ -463,8 +465,8 @@ td {
   .dashboard-grid {
     grid-template-areas:
       "platform"
-      "keywords"
-      "health";
+      "health"
+      "keywords";
   }
 
   .nav-links,
