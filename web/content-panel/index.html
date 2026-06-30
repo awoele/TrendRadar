@@ -8,10 +8,10 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <header class="topbar">
+    <header class="topbar compact">
       <div>
         <p class="eyebrow">TrendRadar</p>
-        <h1>抓取内容</h1>
+        <h1>内容池</h1>
       </div>
       <nav class="nav-links" aria-label="页面导航">
         <a href="../stats/">统计</a>
@@ -20,30 +20,7 @@
     </header>
 
     <main class="shell">
-      <section class="summary-band">
-        <div>
-          <p class="eyebrow">最新快照</p>
-          <h2 id="snapshotTitle">读取中</h2>
-        </div>
-        <div class="summary-metrics">
-          <div>
-            <span>内容总数</span>
-            <strong id="totalCount">-</strong>
-          </div>
-          <div>
-            <span>当前显示</span>
-            <strong id="visibleCount">-</strong>
-          </div>
-        </div>
-      </section>
-
-      <section class="collection-runs" aria-label="抓取记录">
-        <div class="section-heading">
-          <p class="eyebrow">抓取记录</p>
-          <h2>最近导入</h2>
-        </div>
-        <div class="run-list" id="collectionRunList"></div>
-      </section>
+      <section class="platform-strip" id="platformStrip" aria-label="平台数量"></section>
 
       <section class="toolbar" aria-label="内容筛选">
         <label class="field">
@@ -59,61 +36,71 @@
         <button id="clearButton" type="button">清空</button>
       </section>
 
-      <section class="toolbar topic-filters" aria-label="选题筛选">
-        <label class="field">
-          <span>类型</span>
-          <select id="caseTypeSelect">
-            <option value="">全部类型</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>做了什么</span>
-          <select id="builtThingSelect">
-            <option value="">全部方向</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>工具</span>
-          <select id="toolStackSelect">
-            <option value="">全部工具</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>爆点</span>
-          <select id="hookSelect">
-            <option value="">全部爆点</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>内容价值</span>
-          <select id="contentValueSelect">
-            <option value="">全部价值</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>风险</span>
-          <select id="riskFlagSelect">
-            <option value="">全部风险</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>排序</span>
-          <select id="sortSelect">
-            <option value="default">默认排序</option>
-            <option value="hot_score">热度最高</option>
-            <option value="recent_hot_score">近期热度</option>
-            <option value="published_at">发布时间</option>
-            <option value="likes">点赞最多</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="platform-strip" id="platformStrip" aria-label="平台数量"></section>
+      <details class="advanced-filters">
+        <summary>筛选 / 排序</summary>
+        <section class="toolbar topic-filters" aria-label="选题筛选">
+          <label class="field">
+            <span>类型</span>
+            <select id="caseTypeSelect">
+              <option value="">全部类型</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>做了什么</span>
+            <select id="builtThingSelect">
+              <option value="">全部方向</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>工具</span>
+            <select id="toolStackSelect">
+              <option value="">全部工具</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>爆点</span>
+            <select id="hookSelect">
+              <option value="">全部爆点</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>内容价值</span>
+            <select id="contentValueSelect">
+              <option value="">全部价值</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>风险</span>
+            <select id="riskFlagSelect">
+              <option value="">全部风险</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>排序</span>
+            <select id="sortSelect">
+              <option value="default">默认排序</option>
+              <option value="hot_score">热度最高</option>
+              <option value="recent_hot_score">近期热度</option>
+              <option value="published_at">发布时间</option>
+              <option value="likes">点赞最多</option>
+            </select>
+          </label>
+        </section>
+      </details>
 
       <section class="content-list" id="contentList" aria-live="polite"></section>
       <p class="empty" id="emptyState" hidden>没有匹配的内容</p>
+
+      <details class="collection-runs" aria-label="抓取记录">
+        <summary class="collection-summary">
+          <span>采集记录</span>
+          <span class="summary-count"><strong id="visibleCount">-</strong> / <span id="totalCount">-</span></span>
+          <span id="snapshotTitle">读取中</span>
+        </summary>
+        <div class="run-list" id="collectionRunList"></div>
+      </details>
     </main>
 
-    <script src="./app.js?v=topic-filters-1"></script>
+    <script src="./app.js?v=content-first-1"></script>
   </body>
 </html>
