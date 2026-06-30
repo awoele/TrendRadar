@@ -91,12 +91,23 @@ class ContentPanelAssetTests(unittest.TestCase):
         app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
         styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
 
+        self.assertLess(index_html.index("side-menu"), index_html.index("platformStrip"))
         self.assertLess(index_html.index("platformStrip"), index_html.index("searchInput"))
         self.assertIn('platformId: "douyin-favorites"', app_js)
         self.assertIn("platformOrder", app_js)
         self.assertLess(app_js.index('"douyin-favorites"'), app_js.index('"douyin-topic"'))
         self.assertLess(app_js.index('"douyin-topic"'), app_js.index('"xiaohongshu-topic"'))
         self.assertIn(".platform-strip.compact", styles)
+
+    def test_content_filter_bar_keeps_search_compact_with_inline_menu(self):
+        index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
+        styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('<label class="field search-field">', index_html)
+        self.assertLess(index_html.index("side-menu"), index_html.index("searchInput"))
+        self.assertIn(".content-controls .side-menu", styles)
+        self.assertIn("minmax(260px, 420px)", styles)
+        self.assertIn("width: min(420px, 100%)", styles)
 
     def test_panels_do_not_link_to_legacy_blue_report_home(self):
         panel_paths = (
@@ -119,6 +130,34 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertNotIn("reportRows", stats_app)
         self.assertNotIn(".report-item", stats_css)
         self.assertNotIn(".report-list", stats_css)
+
+    def test_stats_panel_uses_compact_layout_without_crawl_title(self):
+        stats_html = Path("web/stats-panel/index.html").read_text(encoding="utf-8")
+        stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
+
+        self.assertNotIn("topbar", stats_html)
+        self.assertNotIn("<h1", stats_html)
+        self.assertNotIn("抓取统计", stats_html)
+        self.assertNotIn("抓取内容", stats_html)
+        self.assertIn('<details class="side-menu"', stats_html)
+        self.assertIn('class="stats-overview"', stats_html)
+        self.assertLess(stats_html.index("statusBand"), stats_html.index("metric-grid"))
+        self.assertIn(".side-menu", stats_css)
+        self.assertIn(".stats-overview", stats_css)
+        self.assertIn(".metric-rail", stats_css)
+
+    def test_config_panel_uses_compact_side_menu_layout(self):
+        config_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
+        config_css = Path("web/config-panel/styles.css").read_text(encoding="utf-8")
+
+        self.assertNotIn("topbar", config_html)
+        self.assertNotIn("<h1", config_html)
+        self.assertIn('<details class="side-menu"', config_html)
+        self.assertIn('class="config-overview"', config_html)
+        self.assertLess(config_html.index("side-menu"), config_html.index("authPanel"))
+        self.assertIn(".side-menu", config_css)
+        self.assertIn(".config-overview", config_css)
+        self.assertNotIn(".topbar", config_css)
 
     def test_public_publish_does_not_run_legacy_report_crawler_or_services(self):
         workflow = Path(".github/workflows/free-pages.yml").read_text(encoding="utf-8")

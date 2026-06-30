@@ -8,29 +8,28 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <details class="side-menu">
-      <summary aria-label="打开页面菜单">
-        <span class="side-menu-mark">TR</span>
-      </summary>
-      <div class="side-menu-panel">
-        <p class="eyebrow">TrendRadar</p>
-        <strong>内容池</strong>
-        <nav class="nav-links" aria-label="页面导航">
-          <a href="./" aria-current="page">内容</a>
-          <a href="../stats/">统计</a>
-          <a href="../config/">配置</a>
-        </nav>
-      </div>
-    </details>
-
     <main class="shell">
       <section class="toolbar content-controls" aria-label="内容筛选">
+        <details class="side-menu">
+          <summary aria-label="打开页面菜单">
+            <span class="side-menu-mark">TR</span>
+          </summary>
+          <div class="side-menu-panel">
+            <p class="eyebrow">TrendRadar</p>
+            <strong>内容池</strong>
+            <nav class="nav-links" aria-label="页面导航">
+              <a href="./" aria-current="page">内容</a>
+              <a href="../stats/">统计</a>
+              <a href="../config/">配置</a>
+            </nav>
+          </div>
+        </details>
         <section class="platform-strip compact" id="platformStrip" aria-label="平台数量"></section>
-        <label class="field">
+        <label class="field search-field">
           <span>搜索标题</span>
           <input id="searchInput" type="search" placeholder="例如 Codex、vibe coding、小游戏">
         </label>
-        <label class="field">
+        <label class="field platform-select-field">
           <span>平台</span>
           <select id="platformSelect">
             <option value="">全部平台</option>
@@ -103,6 +102,6 @@
       </details>
     </main>
 
-    <script src="./app.js?v=side-menu-platform-default-1"></script>
+    <script src="./app.js?v=inline-menu-compact-search-1"></script>
   </body>
 </html>

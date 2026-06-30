@@ -8,36 +8,42 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">awoele/TrendRadar</p>
-        <h1>配置面板</h1>
-      </div>
-      <div class="header-links">
-        <a class="report-link" href="../content/">内容</a>
-        <a class="report-link" href="../stats/">统计</a>
-      </div>
-    </header>
+    <main class="shell config-shell">
+      <section class="config-overview">
+        <details class="side-menu">
+          <summary aria-label="打开页面菜单">
+            <span class="side-menu-mark">TR</span>
+          </summary>
+          <div class="side-menu-panel">
+            <p class="eyebrow">TrendRadar</p>
+            <strong>配置</strong>
+            <nav class="nav-links" aria-label="页面导航">
+              <a href="../content/">内容</a>
+              <a href="../stats/">统计</a>
+              <a href="./" aria-current="page">配置</a>
+            </nav>
+          </div>
+        </details>
 
-    <main class="shell">
-      <section class="auth-panel" id="authPanel">
-        <div>
-          <p class="eyebrow">GitHub 授权</p>
-          <h2>只有仓库写入权限可以保存配置</h2>
-        </div>
-        <label class="field">
-          <span>GitHub token</span>
-          <input id="tokenInput" type="password" autocomplete="off" placeholder="fine-grained token">
-        </label>
-        <label class="checkline">
-          <input id="rememberToken" type="checkbox">
-          <span>保存在这个浏览器</span>
-        </label>
-        <div class="action-row">
-          <button id="unlockButton" type="button">解锁配置</button>
-          <button id="forgetButton" class="secondary" type="button">清除</button>
-        </div>
-        <p class="status" id="authStatus">需要 `Contents: Read and write` 权限；建议再给 `Actions: Write`。</p>
+        <section class="auth-panel" id="authPanel">
+          <div>
+            <p class="eyebrow">GitHub 授权</p>
+            <h2>保存配置</h2>
+          </div>
+          <label class="field token-field">
+            <span>GitHub token</span>
+            <input id="tokenInput" type="password" autocomplete="off" placeholder="fine-grained token">
+          </label>
+          <label class="checkline">
+            <input id="rememberToken" type="checkbox">
+            <span>保存在这个浏览器</span>
+          </label>
+          <div class="action-row">
+            <button id="unlockButton" type="button">解锁配置</button>
+            <button id="forgetButton" class="secondary" type="button">清除</button>
+          </div>
+          <p class="status" id="authStatus">需要 `Contents: Read and write` 权限；建议再给 `Actions: Write`。</p>
+        </section>
       </section>
 
       <form class="workspace locked" id="configForm">
@@ -96,6 +102,6 @@
       </form>
     </main>
 
-    <script src="./app.js"></script>
+    <script src="./app.js?v=config-compact-layout-1"></script>
   </body>
 </html>

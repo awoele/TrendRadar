@@ -8,43 +8,48 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">TrendRadar</p>
-        <h1>抓取统计</h1>
-      </div>
-      <nav class="nav-links" aria-label="页面导航">
-        <a href="../content/">内容</a>
-        <a href="../config/">配置</a>
-      </nav>
-    </header>
+    <main class="shell stats-shell">
+      <section class="stats-overview">
+        <details class="side-menu">
+          <summary aria-label="打开页面菜单">
+            <span class="side-menu-mark">TR</span>
+          </summary>
+          <div class="side-menu-panel">
+            <p class="eyebrow">TrendRadar</p>
+            <strong>统计</strong>
+            <nav class="nav-links" aria-label="页面导航">
+              <a href="../content/">内容</a>
+              <a href="./" aria-current="page">统计</a>
+              <a href="../config/">配置</a>
+            </nav>
+          </div>
+        </details>
+        <section class="status-band" id="statusBand">
+          <div>
+            <p class="eyebrow">数据快照</p>
+            <strong class="status-time" id="updatedAt">读取中</strong>
+          </div>
+          <a class="primary-link" href="../content/">查看内容</a>
+        </section>
 
-    <main class="shell">
-      <section class="status-band" id="statusBand">
-        <div>
-          <p class="eyebrow">最后更新</p>
-          <h2 id="updatedAt">读取中</h2>
-        </div>
-        <a class="primary-link" href="../content/">打开内容面板</a>
-      </section>
-
-      <section class="metric-grid" aria-label="核心统计">
-        <article class="metric">
-          <span>内容条数</span>
-          <strong id="totalCrawled">-</strong>
-        </article>
-        <article class="metric">
-          <span>已纳入</span>
-          <strong id="totalMatched">-</strong>
-        </article>
-        <article class="metric">
-          <span>纳入率</span>
-          <strong id="matchRate">-</strong>
-        </article>
-        <article class="metric">
-          <span>失败平台</span>
-          <strong id="failedCount">-</strong>
-        </article>
+        <section class="metric-grid metric-rail" aria-label="核心统计">
+          <article class="metric">
+            <span>内容总数</span>
+            <strong id="totalCrawled">-</strong>
+          </article>
+          <article class="metric">
+            <span>已纳入</span>
+            <strong id="totalMatched">-</strong>
+          </article>
+          <article class="metric">
+            <span>纳入率</span>
+            <strong id="matchRate">-</strong>
+          </article>
+          <article class="metric">
+            <span>异常平台</span>
+            <strong id="failedCount">-</strong>
+          </article>
+        </section>
       </section>
 
       <section class="layout">
@@ -100,6 +105,6 @@
       <p class="empty">暂无数据</p>
     </template>
 
-    <script src="./app.js"></script>
+    <script src="./app.js?v=stats-compact-layout-1"></script>
   </body>
 </html>
