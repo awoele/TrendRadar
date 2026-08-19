@@ -78,12 +78,13 @@ class ContentPanelAssetTests(unittest.TestCase):
 
         self.assertNotIn("summary-band", index_html)
         self.assertNotIn("topbar", index_html)
-        self.assertIn('<details class="side-menu"', index_html)
+        self.assertIn('<nav class="page-tabs"', index_html)
+        self.assertNotIn("side-menu-mark", index_html)
         self.assertIn('<details class="advanced-filters"', index_html)
         self.assertIn('<details class="collection-runs"', index_html)
         self.assertLess(index_html.index("platformStrip"), index_html.index("contentList"))
         self.assertLess(index_html.index("contentList"), index_html.index("collectionRunList"))
-        self.assertIn(".side-menu", styles)
+        self.assertIn(".page-tabs", styles)
         self.assertIn(".advanced-filters", styles)
 
     def test_platform_filters_are_compact_ordered_and_default_to_favorites(self):
@@ -91,10 +92,17 @@ class ContentPanelAssetTests(unittest.TestCase):
         app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
         styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
 
-        self.assertLess(index_html.index("side-menu"), index_html.index("platformStrip"))
+        overview_row = index_html[index_html.index('<section class="toolbar content-controls"'):index_html.index('<section class="search-filter-row"')]
+        for marker in ("platformStrip", "metric-strip", "sortSelect", "clearButton"):
+            self.assertIn(marker, overview_row)
+        self.assertNotIn("searchInput", overview_row)
+        self.assertLess(index_html.index("page-tabs"), index_html.index("platformStrip"))
+        self.assertLess(index_html.index("platformStrip"), index_html.index("metric-strip"))
+        self.assertLess(index_html.index("metric-strip"), index_html.index("sortSelect"))
         self.assertLess(index_html.index("platformStrip"), index_html.index("searchInput"))
         self.assertIn('platformId: "douyin-favorites"', app_js)
         self.assertIn("platformOrder", app_js)
+        self.assertIn("全部平台 <strong>", app_js)
         self.assertLess(app_js.index('"douyin-favorites"'), app_js.index('"douyin-topic"'))
         self.assertLess(app_js.index('"douyin-topic"'), app_js.index('"xiaohongshu-topic"'))
         self.assertIn(".platform-strip.compact", styles)
@@ -103,11 +111,57 @@ class ContentPanelAssetTests(unittest.TestCase):
         index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
         styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
 
-        self.assertIn('<label class="field search-field">', index_html)
-        self.assertLess(index_html.index("side-menu"), index_html.index("searchInput"))
-        self.assertIn(".content-controls .side-menu", styles)
-        self.assertIn("minmax(260px, 420px)", styles)
-        self.assertIn("width: min(420px, 100%)", styles)
+        self.assertIn('<section class="search-filter-row"', index_html)
+        self.assertIn('<label class="field search-field search-panel">', index_html)
+        self.assertLess(index_html.index("page-tabs"), index_html.index("searchInput"))
+        search_row = index_html[index_html.index('<section class="search-filter-row"'):index_html.index('<section class="content-section"')]
+        self.assertLess(search_row.index("searchInput"), search_row.index("advanced-filters"))
+        self.assertIn(".search-filter-row", styles)
+        self.assertIn("grid-template-columns: minmax(300px, 420px) minmax(0, 1fr)", styles)
+        self.assertIn(".search-panel", styles)
+
+    def test_content_dashboard_surfaces_freshness_metrics_and_progressive_results(self):
+        index_html = Path("web/content-panel/index.html").read_text(encoding="utf-8")
+        app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
+        styles = Path("web/content-panel/styles.css").read_text(encoding="utf-8")
+
+        for marker in (
+            'class="page-header"',
+            'class="metric-grid metric-strip"',
+            'id="snapshotTitle"',
+            'id="platformCountMetric"',
+            'id="topHeatMetric"',
+            'id="topHeatMetricLabel"',
+            'id="resultStatus"',
+            'id="loadMoreButton"',
+        ):
+            self.assertIn(marker, index_html)
+
+        self.assertIn("visibleLimit: 36", app_js)
+        self.assertIn("state.visibleLimit += 24", app_js)
+        self.assertIn("updateDashboardContext", app_js)
+        self.assertIn("itemHeatMetric", app_js)
+        self.assertIn('kind: "hot"', app_js)
+        self.assertIn('kind: "likes"', app_js)
+        self.assertIn("--heat-level", app_js)
+        self.assertIn("--canvas: #f4f6fb", styles)
+        self.assertIn("grid-area: metrics", styles)
+        self.assertIn(".metric-card:first-child", styles)
+        metric_start = index_html.index('class="metric-grid metric-strip"')
+        metric_end = index_html.index("</section>", metric_start)
+        metric_html = index_html[metric_start:metric_end]
+        self.assertNotIn("<button", metric_html)
+        self.assertNotIn("<a ", metric_html)
+        self.assertNotIn("tabindex", metric_html)
+        self.assertIn("prefers-reduced-motion", styles)
+
+    def test_collection_run_sources_are_mapped_to_public_labels(self):
+        app_js = Path("web/content-panel/app.js").read_text(encoding="utf-8")
+
+        self.assertIn("抖音关键词采集", app_js)
+        self.assertIn("小红书关键词采集", app_js)
+        self.assertIn("历史数据导入", app_js)
+        self.assertNotIn('sources.slice(0, 2).join(" / ")', app_js)
 
     def test_panels_do_not_link_to_legacy_blue_report_home(self):
         panel_paths = (
@@ -131,6 +185,24 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertNotIn(".report-item", stats_css)
         self.assertNotIn(".report-list", stats_css)
 
+    def test_all_panels_use_visible_page_tabs_without_abbreviation_icon(self):
+        panels = (
+            (Path("web/content-panel/index.html"), '>内容</a>'),
+            (Path("web/stats-panel/index.html"), '>统计</a>'),
+            (Path("web/config-panel/index.html"), '>配置</a>'),
+        )
+
+        for panel_path, active_label in panels:
+            with self.subTest(panel=str(panel_path)):
+                html = panel_path.read_text(encoding="utf-8")
+                self.assertIn('<nav class="page-tabs" aria-label="页面切换">', html)
+                self.assertIn(f'aria-current="page"{active_label}', html)
+                self.assertIn('>内容</a>', html)
+                self.assertIn('>统计</a>', html)
+                self.assertIn('>配置</a>', html)
+                self.assertNotIn("side-menu-mark", html)
+                self.assertNotIn(">TR</span>", html)
+
     def test_stats_panel_uses_compact_layout_without_crawl_title(self):
         stats_html = Path("web/stats-panel/index.html").read_text(encoding="utf-8")
         stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
@@ -139,10 +211,11 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertNotIn("<h1", stats_html)
         self.assertNotIn("抓取统计", stats_html)
         self.assertNotIn("抓取内容", stats_html)
-        self.assertIn('<details class="side-menu"', stats_html)
+        self.assertIn('<nav class="page-tabs"', stats_html)
+        self.assertNotIn("side-menu-mark", stats_html)
         self.assertIn('class="stats-overview"', stats_html)
         self.assertLess(stats_html.index("statusBand"), stats_html.index("metric-grid"))
-        self.assertIn(".side-menu", stats_css)
+        self.assertIn(".page-tabs", stats_css)
         self.assertIn(".stats-overview", stats_css)
         self.assertIn(".metric-rail", stats_css)
 
@@ -165,34 +238,34 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn("overflow-y: auto", stats_css)
         self.assertIn("align-items: stretch", stats_css)
 
-    def test_stats_menu_is_embedded_in_snapshot_card(self):
+    def test_stats_page_tabs_are_embedded_in_snapshot_card(self):
         stats_html = Path("web/stats-panel/index.html").read_text(encoding="utf-8")
         stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
 
         status_start = stats_html.index('class="status-band"')
         status_end = stats_html.index("</section>", status_start)
         status_markup = stats_html[status_start:status_end]
-        overview_css = stats_css[stats_css.index(".stats-overview"):stats_css.index(".status-band .side-menu")]
 
-        self.assertIn('<details class="side-menu"', status_markup)
-        self.assertIn(".status-band .side-menu", stats_css)
-        self.assertNotIn("auto minmax", overview_css)
+        self.assertIn('<nav class="page-tabs"', status_markup)
+        self.assertIn('href="./" aria-current="page">统计</a>', status_markup)
+        self.assertNotIn("side-menu", status_markup)
         self.assertIn("grid-template-columns: minmax(300px, 0.62fr) minmax(0, 1.38fr)", stats_css)
 
-    def test_config_panel_uses_compact_side_menu_layout(self):
+    def test_config_panel_uses_visible_page_tabs(self):
         config_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
         config_css = Path("web/config-panel/styles.css").read_text(encoding="utf-8")
 
         self.assertNotIn("topbar", config_html)
         self.assertNotIn("<h1", config_html)
-        self.assertIn('<details class="side-menu"', config_html)
+        self.assertIn('<nav class="page-tabs"', config_html)
+        self.assertNotIn("side-menu-mark", config_html)
         self.assertIn('class="config-overview"', config_html)
-        self.assertLess(config_html.index("authPanel"), config_html.index("side-menu"))
-        self.assertIn(".side-menu", config_css)
+        self.assertLess(config_html.index("authPanel"), config_html.index('<nav class="page-tabs"'))
+        self.assertIn(".page-tabs", config_css)
         self.assertIn(".config-overview", config_css)
         self.assertNotIn(".topbar", config_css)
 
-    def test_config_menu_is_embedded_in_auth_card(self):
+    def test_config_page_tabs_are_embedded_in_auth_card(self):
         config_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
         config_css = Path("web/config-panel/styles.css").read_text(encoding="utf-8")
 
@@ -200,8 +273,10 @@ class ContentPanelAssetTests(unittest.TestCase):
         auth_end = config_html.index("</section>", auth_start)
         auth_markup = config_html[auth_start:auth_end]
 
-        self.assertIn('<details class="side-menu"', auth_markup)
-        self.assertIn(".auth-panel .side-menu", config_css)
+        self.assertIn('<nav class="page-tabs"', auth_markup)
+        self.assertIn('href="./" aria-current="page">配置</a>', auth_markup)
+        self.assertIn(".auth-panel .page-tabs", config_css)
+        self.assertNotIn("side-menu", auth_markup)
         self.assertNotIn("grid-template-columns: auto minmax(0, 1fr)", config_css)
         self.assertIn("grid-template-columns: auto minmax(170px, 0.8fr) minmax(240px, 360px) auto minmax(180px, auto)", config_css)
 

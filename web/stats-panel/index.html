@@ -5,31 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TrendRadar 统计</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=visible-page-tabs-1">
   </head>
   <body>
     <main class="shell stats-shell">
       <section class="stats-overview">
         <section class="status-band" id="statusBand">
-          <details class="side-menu">
-            <summary aria-label="打开页面菜单">
-              <span class="side-menu-mark">TR</span>
-            </summary>
-            <div class="side-menu-panel">
-              <p class="eyebrow">TrendRadar</p>
-              <strong>统计</strong>
-              <nav class="nav-links" aria-label="页面导航">
-                <a href="../content/">内容</a>
-                <a href="./" aria-current="page">统计</a>
-                <a href="../config/">配置</a>
-              </nav>
-            </div>
-          </details>
+          <nav class="page-tabs" aria-label="页面切换">
+            <a href="../content/">内容</a>
+            <a href="./" aria-current="page">统计</a>
+            <a href="../config/">配置</a>
+          </nav>
           <div>
             <p class="eyebrow">数据快照</p>
             <strong class="status-time" id="updatedAt">读取中</strong>
           </div>
-          <a class="primary-link" href="../content/">查看内容</a>
         </section>
 
         <section class="metric-grid metric-rail" aria-label="核心统计">
@@ -102,6 +92,6 @@
       <p class="empty">暂无数据</p>
     </template>
 
-    <script src="./app.js?v=stats-menu-inside-snapshot-1"></script>
+    <script src="./app.js?v=visible-page-tabs-1"></script>
   </body>
 </html>

@@ -1,8 +1,15 @@
 (function () {
   const dom = {
     snapshotTitle: document.getElementById("snapshotTitle"),
+    snapshotPill: document.getElementById("snapshotPill"),
     totalCount: document.getElementById("totalCount"),
     visibleCount: document.getElementById("visibleCount"),
+    platformCountMetric: document.getElementById("platformCountMetric"),
+    topHeatMetric: document.getElementById("topHeatMetric"),
+    topHeatMetricLabel: document.getElementById("topHeatMetricLabel"),
+    resultContext: document.getElementById("resultContext"),
+    resultStatus: document.getElementById("resultStatus"),
+    activeFilterCount: document.getElementById("activeFilterCount"),
     searchInput: document.getElementById("searchInput"),
     platformSelect: document.getElementById("platformSelect"),
     caseTypeSelect: document.getElementById("caseTypeSelect"),
@@ -16,7 +23,9 @@
     collectionRunList: document.getElementById("collectionRunList"),
     platformStrip: document.getElementById("platformStrip"),
     contentList: document.getElementById("contentList"),
-    emptyState: document.getElementById("emptyState")
+    emptyState: document.getElementById("emptyState"),
+    loadMoreWrap: document.getElementById("loadMoreWrap"),
+    loadMoreButton: document.getElementById("loadMoreButton")
   };
 
   const state = {
@@ -24,6 +33,7 @@
     query: "",
     platformId: "douyin-favorites",
     sortBy: "published_at",
+    visibleLimit: 36,
     topicFilters: {
       caseType: "",
       builtThing: "",
@@ -49,6 +59,12 @@
     "xiaohongshu-topic"
   ];
 
+  const PLATFORM_ACCENTS = {
+    "douyin-favorites": "#0f8f65",
+    "douyin-topic": "#2563eb",
+    "xiaohongshu-topic": "#c2413d"
+  };
+
   const COVER_PALETTES = [
     ["#0f766e", "#2563eb"],
     ["#7c3aed", "#0891b2"],
@@ -58,8 +74,26 @@
     ["#be123c", "#334155"]
   ];
 
+  const SORT_LABELS = {
+    published_at: "最新发布",
+    hot_score: "热度最高",
+    recent_hot_score: "近期热度",
+    likes: "点赞最多"
+  };
+
   function formatNumber(value) {
     return new Intl.NumberFormat("zh-CN").format(Number(value || 0));
+  }
+
+  function formatCompactNumber(value) {
+    const numeric = numericValue(value);
+    if (numeric >= 100000000) {
+      return `${(numeric / 100000000).toFixed(numeric >= 1000000000 ? 0 : 1).replace(/\.0$/, "")}亿`;
+    }
+    if (numeric >= 10000) {
+      return `${(numeric / 10000).toFixed(numeric >= 1000000 ? 1 : 2).replace(/\.0+$/, "")}万`;
+    }
+    return formatNumber(Math.round(numeric));
   }
 
   function escapeHtml(value) {
@@ -96,6 +130,10 @@
     return url;
   }
 
+  function platformAccent(item) {
+    return PLATFORM_ACCENTS[item.platform_id] || "#6d5bd0";
+  }
+
   function hashText(value) {
     let hash = 0;
     const text = String(value || "");
@@ -110,11 +148,29 @@
     return COVER_PALETTES[hashText(key) % COVER_PALETTES.length];
   }
 
-  function snapshotLabel(snapshot) {
-    if (!snapshot) {
-      return "暂无快照";
+  function numericValue(value) {
+    const parsed = Number.parseFloat(String(value || "").replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function snapshotLabel(snapshot, runs = []) {
+    if (snapshot && (snapshot.date || snapshot.time)) {
+      return `${snapshot.date || ""} ${snapshot.time || ""}`.trim();
     }
-    return `${snapshot.date || ""} ${snapshot.time || ""}`.trim();
+    const latestRun = Array.isArray(runs) ? runs[0] : null;
+    if (latestRun && latestRun.end_date) {
+      return `数据截至 ${latestRun.end_date}`;
+    }
+    return "等待首次快照";
+  }
+
+  function updateFreshnessState(snapshot, runs) {
+    const latestRun = Array.isArray(runs) ? runs[0] : null;
+    const dateValue = (snapshot && snapshot.date) || (latestRun && latestRun.end_date) || "";
+    const snapshotDate = dateValue ? Date.parse(`${dateValue}T00:00:00`) : 0;
+    const isStale = snapshotDate && Date.now() - snapshotDate > 14 * 24 * 60 * 60 * 1000;
+    dom.snapshotPill.classList.toggle("stale", Boolean(isStale));
+    dom.snapshotPill.setAttribute("data-state", isStale ? "数据待更新" : "数据有效");
   }
 
   function formatDateWindow(run) {
@@ -164,9 +220,28 @@
   function runSourceSummary(run) {
     const sources = Array.isArray(run.sources) ? run.sources : [];
     if (!sources.length) {
-      return run.file || "";
+      return "导入记录";
     }
-    return sources.slice(0, 2).join(" / ");
+    const labels = sources.map((source) => {
+      const value = String(source || "").toLowerCase();
+      if (value.includes("douyin:favorites")) {
+        return "抖音收藏";
+      }
+      if (value.includes("tikhub:douyin_keyword_search")) {
+        return "抖音关键词采集";
+      }
+      if (value.includes("redfox:xiaohongshu-crawler")) {
+        return "小红书关键词采集";
+      }
+      if (value.includes("xiaohongshu") || value.includes("redfox_xhs") || value.includes("backfill_xhs")) {
+        return "小红书历史导入";
+      }
+      if (value.includes("douyin")) {
+        return "抖音历史导入";
+      }
+      return "历史数据导入";
+    }).filter((label, index, all) => all.indexOf(label) === index);
+    return labels.slice(0, 2).join(" / ");
   }
 
   function renderCollectionRuns(runs) {
@@ -350,7 +425,7 @@
         }
       });
     });
-    return tags.slice(0, 8);
+    return tags.slice(0, 4);
   }
 
   function renderTopicTags(item) {
@@ -368,17 +443,32 @@
   function topicScore(item) {
     const parts = [];
     if (item.hot_score) {
-      parts.push(`热度 ${item.hot_score}`);
+      parts.push(`热度 ${formatNumber(Math.round(numericValue(item.hot_score)))}`);
     }
     if (item.recent_hot_score) {
-      parts.push(`近期 ${item.recent_hot_score}`);
+      parts.push(`近期 ${formatNumber(Math.round(numericValue(item.recent_hot_score)))}`);
+    }
+    if (!parts.length && item.likes) {
+      parts.push(`点赞 ${formatNumber(item.likes)}`);
     }
     return parts.join(" · ");
   }
 
+  function itemHeatMetric(item) {
+    const hotScore = numericValue(item.hot_score) || numericValue(item.recent_hot_score);
+    if (hotScore) {
+      return { kind: "hot", value: hotScore };
+    }
+    const likes = numericValue(item.likes);
+    if (likes) {
+      return { kind: "likes", value: likes };
+    }
+    return null;
+  }
+
   function coverTitle(item) {
     const title = String(item.title || "未命名内容").trim();
-    return title.length > 28 ? `${title.slice(0, 28)}...` : title;
+    return title.length > 34 ? `${title.slice(0, 34)}...` : title;
   }
 
   function renderCover(item, linkUrl) {
@@ -386,14 +476,14 @@
     const [coverA, coverB] = coverPalette(item);
     const tagName = linkUrl ? "a" : "div";
     const linkAttrs = linkUrl
-      ? ` href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer"`
+      ? ` href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" aria-label="打开来源：${escapeHtml(item.title || "未命名内容")}"`
       : "";
     const imageHtml = imageUrl
       ? `<img class="cover-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" onerror="this.hidden=true">`
       : "";
 
     return `
-      <${tagName} class="content-cover${imageUrl ? " has-image" : ""}" style="--cover-a: ${coverA}; --cover-b: ${coverB};"${linkAttrs}>
+      <${tagName} class="content-cover${imageUrl ? " has-image" : ""}" style="--cover-a: ${coverA}; --cover-b: ${coverB}; --platform-accent: ${platformAccent(item)};"${linkAttrs}>
         ${imageHtml}
         <span class="cover-badge">${escapeHtml(itemBadge(item))}</span>
         <span class="cover-source">${escapeHtml(item.platform_name || item.platform_id || "未知平台")}</span>
@@ -405,6 +495,16 @@
   function renderPlatformControls(platforms) {
     dom.platformSelect.innerHTML = '<option value="">全部平台</option>';
     dom.platformStrip.innerHTML = "";
+
+    const allButton = document.createElement("button");
+    const allActive = !state.platformId;
+    const allCount = platforms.reduce((total, platform) => total + Number(platform.count || 0), 0);
+    allButton.type = "button";
+    allButton.className = `platform-chip${allActive ? " active" : ""}`;
+    allButton.setAttribute("data-platform-id", "");
+    allButton.setAttribute("aria-pressed", String(allActive));
+    allButton.innerHTML = `全部平台 <strong>${formatNumber(allCount)}</strong>`;
+    dom.platformStrip.appendChild(allButton);
 
     platforms.forEach((platform) => {
       const active = state.platformId === platform.id;
@@ -450,8 +550,45 @@
       : []);
   }
 
+  function currentPlatformLabel() {
+    const platform = currentPlatforms().find((item) => item.id === state.platformId);
+    return platform ? platform.name : "全部平台";
+  }
+
+  function updateDashboardContext(items, renderedCount) {
+    const resultCount = items.length;
+    const activeFilters = Object.values(state.topicFilters).filter(Boolean).length;
+    const metricPeaks = items.reduce((peaks, item) => {
+      const metric = itemHeatMetric(item);
+      if (metric) {
+        peaks[metric.kind] = Math.max(peaks[metric.kind], metric.value);
+      }
+      return peaks;
+    }, { hot: 0, likes: 0 });
+    const queryLabel = state.query.trim() ? `“${state.query.trim().slice(0, 18)}” · ` : "";
+
+    dom.visibleCount.textContent = formatNumber(resultCount);
+    if (metricPeaks.hot) {
+      dom.topHeatMetric.textContent = formatCompactNumber(metricPeaks.hot);
+      dom.topHeatMetricLabel.textContent = "最高热度分 · 同口径比较";
+    } else if (metricPeaks.likes) {
+      dom.topHeatMetric.textContent = formatCompactNumber(metricPeaks.likes);
+      dom.topHeatMetricLabel.textContent = "最高点赞 · 同口径比较";
+    } else {
+      dom.topHeatMetric.textContent = "-";
+      dom.topHeatMetricLabel.textContent = "当前结果暂无热度数据";
+    }
+    dom.resultContext.textContent = `${queryLabel}${currentPlatformLabel()} · ${SORT_LABELS[state.sortBy] || "最新发布"}`;
+    dom.resultStatus.textContent = resultCount
+      ? `已展示 ${formatNumber(renderedCount)} / ${formatNumber(resultCount)}`
+      : "0 条结果";
+    dom.activeFilterCount.textContent = activeFilters ? `${activeFilters} 项已启用` : "未启用";
+    dom.activeFilterCount.classList.toggle("active", Boolean(activeFilters));
+  }
+
   function setPlatformFilter(platformId, shouldToggle = true) {
     state.platformId = shouldToggle && state.platformId === platformId ? "" : platformId;
+    state.visibleLimit = 36;
     dom.platformSelect.value = state.platformId;
     renderPlatformControls(currentPlatforms());
     renderItems();
@@ -491,13 +628,32 @@
 
   function renderItems() {
     const items = filteredItems();
-    dom.visibleCount.textContent = formatNumber(items.length);
+    const visibleItems = items.slice(0, state.visibleLimit);
+    const heatCeilings = items.reduce((peaks, item) => {
+      const metric = itemHeatMetric(item);
+      if (metric) {
+        peaks[metric.kind] = Math.max(peaks[metric.kind], metric.value);
+      }
+      return peaks;
+    }, { hot: 0, likes: 0 });
     dom.contentList.innerHTML = "";
     dom.emptyState.hidden = Boolean(items.length);
+    dom.loadMoreWrap.hidden = visibleItems.length >= items.length;
+    if (!dom.loadMoreWrap.hidden) {
+      const remaining = items.length - visibleItems.length;
+      dom.loadMoreButton.textContent = `再看 ${formatNumber(Math.min(24, remaining))} 条`;
+    }
+    updateDashboardContext(items, visibleItems.length);
 
-    items.forEach((item) => {
+    visibleItems.forEach((item) => {
       const article = document.createElement("article");
       article.className = "content-card";
+      const heatMetric = itemHeatMetric(item);
+      const heatLevel = heatMetric
+        ? Math.max(4, Math.round((heatMetric.value / (heatCeilings[heatMetric.kind] || 1)) * 100))
+        : 0;
+      article.style.setProperty("--heat-level", `${heatLevel}%`);
+      article.style.setProperty("--platform-accent", platformAccent(item));
       const title = escapeHtml(item.title || "未命名内容");
       const url = safeExternalUrl(item.url);
       const meta = itemMeta(item);
@@ -514,13 +670,16 @@
           <div class="content-row">
             <span class="content-rank ${item.source_type === "search_import" ? "search" : ""} ${item.source_type === "topic_import" ? "topic" : ""}">${escapeHtml(itemBadge(item))}</span>
             <span class="content-platform">${escapeHtml(item.platform_name || item.platform_id || "未知平台")}</span>
+            ${score ? `<span class="content-score">${escapeHtml(score)}</span>` : '<span class="content-score muted">暂缺热度</span>'}
           </div>
           ${titleHtml}
           ${meta ? `<div class="content-detail">${escapeHtml(meta)}</div>` : ""}
-          ${score ? `<div class="content-score">${escapeHtml(score)}</div>` : ""}
           ${tagsHtml}
           ${snippet ? `<p class="content-snippet">${escapeHtml(snippet)}</p>` : ""}
-          <div class="content-meta">${escapeHtml(item.platform_id || "")}</div>
+          <div class="content-footer">
+            <span class="content-meta">${escapeHtml(item.author ? `作者 · ${item.author}` : "公开内容来源")}</span>
+            ${url ? `<a class="source-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">查看原文 ↗</a>` : ""}
+          </div>
         </div>
       `;
       dom.contentList.appendChild(article);
@@ -531,8 +690,10 @@
     state.content = content;
     const platforms = orderedPlatforms(Array.isArray(content.platforms) ? content.platforms : []);
     const items = Array.isArray(content.items) ? content.items : [];
-    dom.snapshotTitle.textContent = snapshotLabel(content.snapshot);
+    dom.snapshotTitle.textContent = snapshotLabel(content.snapshot, content.collection_runs || []);
+    updateFreshnessState(content.snapshot, content.collection_runs || []);
     dom.totalCount.textContent = formatNumber(content.total || items.length);
+    dom.platformCountMetric.textContent = formatNumber(platforms.length);
     renderCollectionRuns(content.collection_runs || []);
     ensurePlatformSelection(platforms);
     renderPlatformControls(platforms);
@@ -543,6 +704,7 @@
   function bindEvents() {
     dom.searchInput.addEventListener("input", () => {
       state.query = dom.searchInput.value;
+      state.visibleLimit = 36;
       renderItems();
     });
 
@@ -555,18 +717,25 @@
       if (!button) {
         return;
       }
-      setPlatformFilter(button.getAttribute("data-platform-id") || "");
+      setPlatformFilter(button.getAttribute("data-platform-id") || "", false);
     });
 
     topicFilterFields.forEach((field) => {
       dom[field.selectKey].addEventListener("change", () => {
         state.topicFilters[field.stateKey] = dom[field.selectKey].value;
+        state.visibleLimit = 36;
         renderItems();
       });
     });
 
     dom.sortSelect.addEventListener("change", () => {
       state.sortBy = dom.sortSelect.value || "published_at";
+      state.visibleLimit = 36;
+      renderItems();
+    });
+
+    dom.loadMoreButton.addEventListener("click", () => {
+      state.visibleLimit += 24;
       renderItems();
     });
 
@@ -574,6 +743,7 @@
       state.query = "";
       state.platformId = "douyin-favorites";
       state.sortBy = "published_at";
+      state.visibleLimit = 36;
       Object.keys(state.topicFilters).forEach((key) => {
         state.topicFilters[key] = "";
       });
@@ -603,8 +773,14 @@
       dom.snapshotTitle.textContent = "内容加载失败";
       dom.totalCount.textContent = "0";
       dom.visibleCount.textContent = "0";
+      dom.platformCountMetric.textContent = "0";
+      dom.topHeatMetric.textContent = "-";
+      dom.topHeatMetricLabel.textContent = "当前结果暂无热度数据";
+      dom.resultContext.textContent = "无法读取内容数据";
+      dom.resultStatus.textContent = "加载失败";
+      dom.loadMoreWrap.hidden = true;
       dom.emptyState.hidden = false;
-      dom.emptyState.textContent = error.message;
+      dom.emptyState.textContent = `内容加载失败：${error.message}`;
     }
   }
 

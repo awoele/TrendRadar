@@ -5,26 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TrendRadar 配置面板</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=visible-page-tabs-1">
   </head>
   <body>
     <main class="shell config-shell">
       <section class="config-overview">
         <section class="auth-panel" id="authPanel">
-          <details class="side-menu">
-            <summary aria-label="打开页面菜单">
-              <span class="side-menu-mark">TR</span>
-            </summary>
-            <div class="side-menu-panel">
-              <p class="eyebrow">TrendRadar</p>
-              <strong>配置</strong>
-              <nav class="nav-links" aria-label="页面导航">
-                <a href="../content/">内容</a>
-                <a href="../stats/">统计</a>
-                <a href="./" aria-current="page">配置</a>
-              </nav>
-            </div>
-          </details>
+          <nav class="page-tabs" aria-label="页面切换">
+            <a href="../content/">内容</a>
+            <a href="../stats/">统计</a>
+            <a href="./" aria-current="page">配置</a>
+          </nav>
           <div>
             <p class="eyebrow">GitHub 授权</p>
             <h2>保存配置</h2>
@@ -101,6 +92,6 @@
       </form>
     </main>
 
-    <script src="./app.js?v=config-menu-inside-auth-1"></script>
+    <script src="./app.js?v=visible-page-tabs-1"></script>
   </body>
 </html>
