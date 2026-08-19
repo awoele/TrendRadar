@@ -203,18 +203,20 @@ class ContentPanelAssetTests(unittest.TestCase):
                 self.assertNotIn("side-menu-mark", html)
                 self.assertNotIn(">TR</span>", html)
 
-    def test_stats_panel_uses_compact_layout_without_crawl_title(self):
+    def test_stats_panel_uses_shared_page_header_and_dashboard_layout(self):
         stats_html = Path("web/stats-panel/index.html").read_text(encoding="utf-8")
         stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
 
         self.assertNotIn("topbar", stats_html)
-        self.assertNotIn("<h1", stats_html)
-        self.assertNotIn("抓取统计", stats_html)
-        self.assertNotIn("抓取内容", stats_html)
+        self.assertIn('<header class="page-header">', stats_html)
+        self.assertIn("<h1>TrendRadar 数据统计</h1>", stats_html)
+        self.assertIn('class="page-subtitle"', stats_html)
         self.assertIn('<nav class="page-tabs"', stats_html)
         self.assertNotIn("side-menu-mark", stats_html)
         self.assertIn('class="stats-overview"', stats_html)
+        self.assertLess(stats_html.index('class="page-header"'), stats_html.index('class="stats-overview"'))
         self.assertLess(stats_html.index("statusBand"), stats_html.index("metric-grid"))
+        self.assertIn(".page-header", stats_css)
         self.assertIn(".page-tabs", stats_css)
         self.assertIn(".stats-overview", stats_css)
         self.assertIn(".metric-rail", stats_css)
@@ -238,47 +240,87 @@ class ContentPanelAssetTests(unittest.TestCase):
         self.assertIn("overflow-y: auto", stats_css)
         self.assertIn("align-items: stretch", stats_css)
 
-    def test_stats_page_tabs_are_embedded_in_snapshot_card(self):
+    def test_stats_page_tabs_stay_in_header_not_snapshot_card(self):
         stats_html = Path("web/stats-panel/index.html").read_text(encoding="utf-8")
         stats_css = Path("web/stats-panel/styles.css").read_text(encoding="utf-8")
 
+        header_start = stats_html.index('<header class="page-header">')
+        header_end = stats_html.index("</header>", header_start)
+        header_markup = stats_html[header_start:header_end]
         status_start = stats_html.index('class="status-band"')
         status_end = stats_html.index("</section>", status_start)
         status_markup = stats_html[status_start:status_end]
 
-        self.assertIn('<nav class="page-tabs"', status_markup)
-        self.assertIn('href="./" aria-current="page">统计</a>', status_markup)
+        self.assertIn('<nav class="page-tabs"', header_markup)
+        self.assertIn('href="./" aria-current="page">统计</a>', header_markup)
+        self.assertNotIn('<nav class="page-tabs"', status_markup)
         self.assertNotIn("side-menu", status_markup)
-        self.assertIn("grid-template-columns: minmax(300px, 0.62fr) minmax(0, 1.38fr)", stats_css)
+        self.assertIn("grid-template-columns: minmax(260px, 0.52fr) minmax(0, 1.48fr)", stats_css)
+        self.assertIn("grid-template-columns: minmax(0, 1fr);", stats_css)
 
-    def test_config_panel_uses_visible_page_tabs(self):
+    def test_config_panel_uses_shared_page_header_and_dashboard_layout(self):
         config_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
         config_css = Path("web/config-panel/styles.css").read_text(encoding="utf-8")
 
         self.assertNotIn("topbar", config_html)
-        self.assertNotIn("<h1", config_html)
+        self.assertIn('<header class="page-header">', config_html)
+        self.assertIn("<h1>TrendRadar 抓取配置</h1>", config_html)
+        self.assertIn('class="page-subtitle"', config_html)
         self.assertIn('<nav class="page-tabs"', config_html)
         self.assertNotIn("side-menu-mark", config_html)
         self.assertIn('class="config-overview"', config_html)
-        self.assertLess(config_html.index("authPanel"), config_html.index('<nav class="page-tabs"'))
+        self.assertLess(config_html.index('class="page-header"'), config_html.index('class="config-overview"'))
+        self.assertIn(".page-header", config_css)
         self.assertIn(".page-tabs", config_css)
         self.assertIn(".config-overview", config_css)
         self.assertNotIn(".topbar", config_css)
 
-    def test_config_page_tabs_are_embedded_in_auth_card(self):
+    def test_config_page_tabs_stay_in_header_not_auth_card(self):
         config_html = Path("web/config-panel/index.html").read_text(encoding="utf-8")
         config_css = Path("web/config-panel/styles.css").read_text(encoding="utf-8")
 
+        header_start = config_html.index('<header class="page-header">')
+        header_end = config_html.index("</header>", header_start)
+        header_markup = config_html[header_start:header_end]
         auth_start = config_html.index('class="auth-panel"')
         auth_end = config_html.index("</section>", auth_start)
         auth_markup = config_html[auth_start:auth_end]
 
-        self.assertIn('<nav class="page-tabs"', auth_markup)
-        self.assertIn('href="./" aria-current="page">配置</a>', auth_markup)
-        self.assertIn(".auth-panel .page-tabs", config_css)
+        self.assertIn('<nav class="page-tabs"', header_markup)
+        self.assertIn('href="./" aria-current="page">配置</a>', header_markup)
+        self.assertNotIn('<nav class="page-tabs"', auth_markup)
+        self.assertNotIn(".auth-panel .page-tabs", config_css)
         self.assertNotIn("side-menu", auth_markup)
         self.assertNotIn("grid-template-columns: auto minmax(0, 1fr)", config_css)
-        self.assertIn("grid-template-columns: auto minmax(170px, 0.8fr) minmax(240px, 360px) auto minmax(180px, auto)", config_css)
+        self.assertIn("grid-template-columns: minmax(170px, 0.8fr) minmax(240px, 360px) auto minmax(180px, auto)", config_css)
+        self.assertIn("grid-column: 1 / -1", config_css)
+
+    def test_panels_share_homepage_typography_and_mobile_scale(self):
+        panel_styles = (
+            Path("web/content-panel/styles.css"),
+            Path("web/stats-panel/styles.css"),
+            Path("web/config-panel/styles.css"),
+        )
+
+        for panel_path in panel_styles:
+            with self.subTest(panel=str(panel_path)):
+                styles = panel_path.read_text(encoding="utf-8")
+                self.assertIn("--canvas: #f4f6fb", styles)
+                self.assertIn("--ink: #182033", styles)
+                self.assertIn("--muted: #68798d", styles)
+                self.assertIn("--line: #e2e7ef", styles)
+                self.assertIn('Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif', styles)
+                self.assertIn("font-size: 14px", styles)
+                self.assertIn("line-height: 1.5", styles)
+                self.assertIn("-webkit-text-size-adjust: 100%", styles)
+                self.assertIn("@media (max-width: 700px)", styles)
+                self.assertIn("@media (max-width: 520px)", styles)
+                self.assertIn("font-size: 21px", styles)
+
+        for panel_path in panel_styles[1:]:
+            styles = panel_path.read_text(encoding="utf-8")
+            self.assertNotIn("background-size: 40px 40px", styles)
+            self.assertNotIn("background-size: 36px 36px", styles)
 
     def test_public_publish_does_not_run_legacy_report_crawler_or_services(self):
         workflow = Path(".github/workflows/free-pages.yml").read_text(encoding="utf-8")

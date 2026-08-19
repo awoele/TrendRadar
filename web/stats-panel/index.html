@@ -5,17 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TrendRadar 统计</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./styles.css?v=visible-page-tabs-1">
+    <link rel="stylesheet" href="./styles.css?v=unified-dashboard-1">
   </head>
   <body>
     <main class="shell stats-shell">
+      <header class="page-header">
+        <div class="page-heading">
+          <p class="eyebrow">TREND INTELLIGENCE</p>
+          <h1>TrendRadar 数据统计</h1>
+          <p class="page-subtitle">查看内容规模、平台表现、采集健康度与关键词趋势</p>
+        </div>
+        <nav class="page-tabs" aria-label="页面切换">
+          <a href="../content/">内容</a>
+          <a href="./" aria-current="page">统计</a>
+          <a href="../config/">配置</a>
+        </nav>
+      </header>
+
       <section class="stats-overview">
         <section class="status-band" id="statusBand">
-          <nav class="page-tabs" aria-label="页面切换">
-            <a href="../content/">内容</a>
-            <a href="./" aria-current="page">统计</a>
-            <a href="../config/">配置</a>
-          </nav>
           <div>
             <p class="eyebrow">数据快照</p>
             <strong class="status-time" id="updatedAt">读取中</strong>
@@ -92,6 +100,6 @@
       <p class="empty">暂无数据</p>
     </template>
 
-    <script src="./app.js?v=visible-page-tabs-1"></script>
+    <script src="./app.js?v=unified-dashboard-1"></script>
   </body>
 </html>

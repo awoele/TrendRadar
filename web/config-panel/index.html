@@ -5,17 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TrendRadar 配置面板</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./styles.css?v=visible-page-tabs-1">
+    <link rel="stylesheet" href="./styles.css?v=unified-dashboard-1">
   </head>
   <body>
     <main class="shell config-shell">
+      <header class="page-header">
+        <div class="page-heading">
+          <p class="eyebrow">TREND INTELLIGENCE</p>
+          <h1>TrendRadar 抓取配置</h1>
+          <p class="page-subtitle">管理平台、关键词与公开看板的采集规则</p>
+        </div>
+        <nav class="page-tabs" aria-label="页面切换">
+          <a href="../content/">内容</a>
+          <a href="../stats/">统计</a>
+          <a href="./" aria-current="page">配置</a>
+        </nav>
+      </header>
+
       <section class="config-overview">
         <section class="auth-panel" id="authPanel">
-          <nav class="page-tabs" aria-label="页面切换">
-            <a href="../content/">内容</a>
-            <a href="../stats/">统计</a>
-            <a href="./" aria-current="page">配置</a>
-          </nav>
           <div>
             <p class="eyebrow">GitHub 授权</p>
             <h2>保存配置</h2>
@@ -92,6 +100,6 @@
       </form>
     </main>
 
-    <script src="./app.js?v=visible-page-tabs-1"></script>
+    <script src="./app.js?v=unified-dashboard-1"></script>
   </body>
 </html>
