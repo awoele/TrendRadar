@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TrendRadar 统计</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./styles.css?v=unified-dashboard-1">
+    <link rel="stylesheet" href="./styles.css?v=analysis-report-6">
   </head>
   <body>
     <main class="shell stats-shell">
@@ -13,7 +13,7 @@
         <div class="page-heading">
           <p class="eyebrow">TREND INTELLIGENCE</p>
           <h1>TrendRadar 数据统计</h1>
-          <p class="page-subtitle">查看内容规模、平台表现、采集健康度与关键词趋势</p>
+          <p class="page-subtitle">从样本构成、标签证据到可执行的选题判断</p>
         </div>
         <nav class="page-tabs" aria-label="页面切换">
           <a href="../content/">内容</a>
@@ -22,77 +22,212 @@
         </nav>
       </header>
 
-      <section class="stats-overview">
-        <section class="status-band" id="statusBand">
-          <div>
-            <p class="eyebrow">数据快照</p>
-            <strong class="status-time" id="updatedAt">读取中</strong>
-          </div>
+      <section class="view-toolbar" aria-label="统计视图切换">
+        <div class="view-tabs" role="tablist" aria-label="统计内容">
+          <button type="button" id="dashboardTab" role="tab" aria-selected="true" aria-controls="dashboardView" data-view="dashboard">数据看板</button>
+          <button type="button" id="reportTab" role="tab" aria-selected="false" aria-controls="reportView" data-view="report" tabindex="-1">深度报告</button>
+        </div>
+        <p id="viewDescription">快速查看样本规模、来源构成与高频标签</p>
+      </section>
+
+      <section class="view-panel" id="dashboardView" role="tabpanel" aria-labelledby="dashboardTab">
+        <section class="stats-overview">
+          <section class="status-band" id="statusBand">
+            <div>
+              <p class="eyebrow">数据截止</p>
+              <strong class="status-time" id="dataCutoff">读取中</strong>
+              <p class="status-note">页面生成 <span id="generatedAt">—</span></p>
+            </div>
+          </section>
+
+          <section class="metric-grid metric-rail" aria-label="核心统计">
+            <article class="metric">
+              <span>唯一内容</span>
+              <strong id="totalUnique">-</strong>
+            </article>
+            <article class="metric">
+              <span>结构化选题</span>
+              <strong id="structuredItems">-</strong>
+            </article>
+            <article class="metric">
+              <span>精确 URL 去重</span>
+              <strong id="duplicateRate">-</strong>
+            </article>
+            <article class="metric metric-risk">
+              <span>风险复核</span>
+              <strong id="riskReview">-</strong>
+            </article>
+          </section>
         </section>
 
-        <section class="metric-grid metric-rail" aria-label="核心统计">
-          <article class="metric">
-            <span>内容总数</span>
-            <strong id="totalCrawled">-</strong>
-          </article>
-          <article class="metric">
-            <span>已纳入</span>
-            <strong id="totalMatched">-</strong>
-          </article>
-          <article class="metric">
-            <span>纳入率</span>
-            <strong id="matchRate">-</strong>
-          </article>
-          <article class="metric">
-            <span>异常平台</span>
-            <strong id="failedCount">-</strong>
-          </article>
+        <section class="dashboard-grid">
+          <section class="panel platform-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Sources</p>
+                <h2>来源构成</h2>
+              </div>
+              <span class="pill" id="platformCount">0 个来源</span>
+            </div>
+            <p class="panel-note">数量仅表示当前样本构成，不代表平台份额或表现。</p>
+            <div class="table-wrap" role="region" aria-label="来源构成表，可左右滚动" tabindex="0">
+              <table>
+                <thead>
+                  <tr>
+                    <th>来源</th>
+                    <th>唯一内容</th>
+                    <th>结构化</th>
+                    <th>样本占比</th>
+                  </tr>
+                </thead>
+                <tbody id="platformRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel health-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Collection</p>
+                <h2>采集状态</h2>
+              </div>
+            </div>
+            <div class="collection-state" id="collectionStatus"></div>
+          </section>
+
+          <section class="panel keyword-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Label coverage</p>
+                <h2>高频标签</h2>
+              </div>
+            </div>
+            <p class="panel-note">混合展示不同标签维度，次数表示覆盖量，不等于趋势或表现。</p>
+            <div class="rank-list" id="keywordRows" role="region" aria-label="高频标签列表，可上下滚动" tabindex="0"></div>
+          </section>
         </section>
       </section>
 
-      <section class="dashboard-grid">
-        <section class="panel platform-panel">
+      <section class="view-panel report-view" id="reportView" role="tabpanel" aria-labelledby="reportTab" hidden>
+        <section class="report-hero">
+          <div class="report-hero-copy">
+            <p class="eyebrow">DECISION BRIEFING</p>
+            <h2 id="reportHeadline">正在生成报告摘要</h2>
+            <p class="report-summary" id="reportSummary">请稍候，正在读取当前样本口径。</p>
+            <div class="report-meta" id="reportMeta"></div>
+          </div>
+          <aside class="scope-card" aria-label="报告口径">
+            <span>统计单位</span>
+            <strong id="reportUnit">精确 URL 唯一内容</strong>
+            <p id="reportScope">当前静态样本，不代表全网趋势</p>
+          </aside>
+        </section>
+
+        <section class="report-kpi-grid" id="reportKpis" aria-label="样本与可信度"></section>
+
+        <section class="panel report-insight-panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Platforms</p>
-              <h2>平台表现</h2>
+              <p class="eyebrow">Evidence chain</p>
+              <h2>决策摘要</h2>
             </div>
-            <span class="pill" id="platformCount">0 个平台</span>
+            <span class="pill">证据 → 判断 → 动作</span>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>平台</th>
-                  <th>内容</th>
-                  <th>纳入</th>
-                  <th>占比</th>
-                </tr>
-              </thead>
-              <tbody id="platformRows"></tbody>
+          <div class="insight-list" id="insightCards"></div>
+        </section>
+
+        <section class="report-grid report-grid-primary">
+          <section class="panel composition-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Composition</p>
+                <h2>内容结构</h2>
+              </div>
+              <span class="pill" id="structuredBase">N = 0</span>
+            </div>
+            <p class="panel-note">每个占比均以结构化选题为分母；字段可多选时合计可能超过 100%。</p>
+            <div class="dimension-grid" id="dimensionCards"></div>
+          </section>
+
+          <section class="panel quality-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Data quality</p>
+                <h2>字段完整度</h2>
+              </div>
+              <span class="pill pill-neutral" id="qualityScore">-</span>
+            </div>
+            <p class="panel-note" id="qualitySummary">正在读取字段覆盖情况。</p>
+            <div class="quality-list" id="qualityRows"></div>
+          </section>
+        </section>
+
+        <section class="panel comparison-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Sample differences</p>
+              <h2>跨平台样本差异</h2>
+            </div>
+            <span class="pill pill-amber">不是用户偏好结论</span>
+          </div>
+          <p class="panel-note">每格以该平台该维度已标注样本为分母，并展示字段覆盖率；按占比差百分点排序。</p>
+          <div class="table-wrap" role="region" aria-label="跨平台样本差异表，可左右滚动" tabindex="0">
+            <table class="comparison-table">
+              <thead id="comparisonHead"></thead>
+              <tbody id="comparisonRows"></tbody>
             </table>
           </div>
+          <div class="comparison-cards" id="comparisonCards" aria-label="跨平台样本差异卡片"></div>
         </section>
 
-        <section class="panel health-panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Health</p>
-              <h2>失败平台</h2>
+        <section class="report-grid report-grid-secondary">
+          <section class="panel opportunity-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Editorial queue</p>
+                <h2>低风险选题候选池</h2>
+              </div>
+              <span class="pill">按可复核条数排序</span>
             </div>
-          </div>
-          <div class="failure-list" id="failedPlatforms"></div>
+            <p class="panel-note">“候选”仅表示含“有结果/可复刻”信号且未标风险，仍需人工核对原文。</p>
+            <div class="opportunity-list" id="opportunityRows"></div>
+          </section>
+
+          <section class="panel recipe-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Content recipes</p>
+                <h2>高密度叙事组合</h2>
+              </div>
+            </div>
+            <p class="panel-note">表示当前样本中重复出现的供给结构，不代表传播效果。</p>
+            <div class="recipe-list" id="recipeRows"></div>
+          </section>
         </section>
 
-        <section class="panel keyword-panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Keywords</p>
-              <h2>关键词排行</h2>
-            </div>
+        <details class="panel methodology-panel">
+          <summary>
+            <span>
+              <span class="eyebrow">Methodology</span>
+              <strong>方法、分母与声称边界</strong>
+            </span>
+            <span class="summary-hint">展开查看</span>
+          </summary>
+          <div class="method-grid">
+            <section>
+              <h3>计算规则</h3>
+              <ul id="methodRules"></ul>
+            </section>
+            <section>
+              <h3>当前可以说明</h3>
+              <ul class="claim-list safe" id="safeClaims"></ul>
+            </section>
+            <section>
+              <h3>当前不支持声称</h3>
+              <ul class="claim-list unsupported" id="unsupportedClaims"></ul>
+            </section>
           </div>
-          <div class="rank-list" id="keywordRows"></div>
-        </section>
+        </details>
       </section>
     </main>
 
@@ -100,6 +235,6 @@
       <p class="empty">暂无数据</p>
     </template>
 
-    <script src="./app.js?v=unified-dashboard-1"></script>
+    <script src="./app.js?v=analysis-report-6"></script>
   </body>
 </html>

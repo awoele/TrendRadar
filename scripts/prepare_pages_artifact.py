@@ -353,34 +353,61 @@ def _imported_search_content(import_source: Path) -> dict:
         return {
             "platforms": [],
             "items": [],
+            "audit": {
+                "raw_rows": 0,
+                "included_rows": 0,
+                "duplicate_urls": 0,
+                "missing_required": 0,
+                "unsupported_platform": 0,
+                "excluded_source": 0,
+                "irrelevant_topic": 0,
+            },
         }
 
     platforms = {}
     items = []
     seen_urls = set()
+    audit = {
+        "raw_rows": 0,
+        "included_rows": 0,
+        "duplicate_urls": 0,
+        "missing_required": 0,
+        "unsupported_platform": 0,
+        "excluded_source": 0,
+        "irrelevant_topic": 0,
+    }
 
     for csv_file in sorted(import_source.glob("*.csv")):
         if _is_smoke_import(csv_file):
             continue
         with csv_file.open("r", encoding="utf-8-sig", newline="") as handle:
             for row in csv.DictReader(handle):
+                audit["raw_rows"] += 1
                 platform = (row.get("platform") or "").strip().lower()
                 if platform not in {"douyin", "xiaohongshu"}:
+                    audit["unsupported_platform"] += 1
                     continue
 
                 title = (row.get("title") or "").strip()
                 url = (row.get("url") or "").strip()
-                if not title or not url or url in seen_urls:
+                if not title or not url:
+                    audit["missing_required"] += 1
                     continue
-                seen_urls.add(url)
 
                 source = (row.get("source") or "").strip()
                 if source == "tikhub:douyin_hot_search":
+                    audit["excluded_source"] += 1
                     continue
 
                 is_topic_import = _is_topic_import(row)
                 if is_topic_import and not _is_relevant_topic(row):
+                    audit["irrelevant_topic"] += 1
                     continue
+
+                if url in seen_urls:
+                    audit["duplicate_urls"] += 1
+                    continue
+                seen_urls.add(url)
 
                 platform_id, platform_name = _import_platform(platform, is_topic_import, source)
                 source_type = (
@@ -399,6 +426,7 @@ def _imported_search_content(import_source: Path) -> dict:
                     },
                 )
                 platforms[platform_id]["count"] += 1
+                audit["included_rows"] += 1
                 items.append(
                     {
                         "platform_id": platform_id,
@@ -444,6 +472,7 @@ def _imported_search_content(import_source: Path) -> dict:
     return {
         "platforms": list(platforms.values()),
         "items": items,
+        "audit": audit,
     }
 
 
@@ -628,6 +657,49 @@ def _filter_primary_content(content: dict) -> dict:
     }
 
 
+def _dedupe_public_content(content: dict) -> dict:
+    items = []
+    seen_urls = set()
+    merged_duplicate_urls = 0
+    missing_url_items = 0
+
+    for item in content.get("items", []):
+        url = (item.get("url") or "").strip()
+        if url:
+            if url in seen_urls:
+                merged_duplicate_urls += 1
+                continue
+            seen_urls.add(url)
+        else:
+            missing_url_items += 1
+        items.append(item)
+
+    platforms = {}
+    for item in items:
+        platform_id = item.get("platform_id") or item.get("platform_name") or "unknown"
+        platforms.setdefault(
+            platform_id,
+            {
+                "id": platform_id,
+                "name": item.get("platform_name") or platform_id or "未知平台",
+                "count": 0,
+            },
+        )
+        platforms[platform_id]["count"] += 1
+
+    return {
+        **content,
+        "total": len(items),
+        "platforms": list(platforms.values()),
+        "items": items,
+        "deduplication": {
+            "merged_duplicate_urls": merged_duplicate_urls,
+            "url_items": len(items) - missing_url_items,
+            "missing_url_items": missing_url_items,
+        },
+    }
+
+
 def _build_public_content(source: Path, import_source: Path = Path("data/imports")) -> dict:
     import_source = Path(import_source)
     content = _filter_primary_content(_parse_txt_snapshot_content(_latest_txt_snapshot(source)))
@@ -643,9 +715,641 @@ def _build_public_content(source: Path, import_source: Path = Path("data/imports
         "total": len(imported["items"]),
         "platforms": imported["platforms"],
         "runs": runs,
+        "audit": imported["audit"],
     }
     content["collection_runs"] = runs
-    return content
+    return _dedupe_public_content(content)
+
+
+_ANALYSIS_DIMENSION_LABELS = {
+    "case_type": "案例类型",
+    "built_thing": "产物方向",
+    "tool_stack": "工具栈",
+    "target_audience": "目标受众",
+    "hook": "叙事钩子",
+    "content_value": "内容价值",
+    "risk_flag": "风险标签",
+}
+
+_ANALYSIS_CORE_FIELDS = (
+    "case_type",
+    "built_thing",
+    "tool_stack",
+    "target_audience",
+    "hook",
+    "content_value",
+)
+
+
+def _analysis_labels(item: dict, key: str) -> list[str]:
+    return list(dict.fromkeys(_topic_labels(item, key)))
+
+
+def _analysis_rate(count: int, denominator: int) -> float:
+    if not denominator:
+        return 0.0
+    return round(count / denominator, 4)
+
+
+def _analysis_percent(rate: float) -> str:
+    return f"{rate * 100:.1f}%"
+
+
+def _analysis_platform(item: dict) -> tuple[str, str]:
+    platform_id = (item.get("platform_id") or "unknown").lower()
+    if platform_id.startswith("douyin"):
+        return "douyin", "抖音"
+    if platform_id.startswith("xiaohongshu"):
+        return "xiaohongshu", "小红书"
+    return platform_id, item.get("platform_name") or platform_id or "未知来源"
+
+
+def _analysis_is_structured(item: dict) -> bool:
+    return bool(_analysis_labels(item, "case_type"))
+
+
+def _analysis_is_candidate(item: dict) -> bool:
+    return bool(
+        set(_analysis_labels(item, "content_value"))
+        & {"有结果", "可复刻"}
+    )
+
+
+def _analysis_has_risk(item: dict) -> bool:
+    return bool(_analysis_labels(item, "risk_flag"))
+
+
+def _analysis_dimension(items: list[dict], key: str, denominator: int) -> dict:
+    counts = {}
+    platform_counts = {}
+    labeled_items = 0
+
+    for item in items:
+        labels = _analysis_labels(item, key)
+        if labels:
+            labeled_items += 1
+        platform_id, platform_name = _analysis_platform(item)
+        for label in labels:
+            counts[label] = counts.get(label, 0) + 1
+            platform_counts.setdefault(label, {})
+            platform_counts[label].setdefault(
+                platform_id,
+                {"id": platform_id, "name": platform_name, "count": 0},
+            )
+            platform_counts[label][platform_id]["count"] += 1
+
+    rows = []
+    for name, count in sorted(
+        counts.items(), key=lambda item: (-item[1], item[0].lower())
+    ):
+        rows.append(
+            {
+                "name": name,
+                "count": count,
+                "denominator": denominator,
+                "rate": _analysis_rate(count, denominator),
+                "platforms": sorted(
+                    platform_counts.get(name, {}).values(),
+                    key=lambda item: (-item["count"], item["name"]),
+                ),
+            }
+        )
+
+    return {
+        "id": key,
+        "label": _ANALYSIS_DIMENSION_LABELS[key],
+        "denominator": denominator,
+        "labeled_items": labeled_items,
+        "coverage": _analysis_rate(labeled_items, denominator),
+        "items": rows,
+    }
+
+
+def _analysis_date_window(items: list[dict]) -> dict:
+    dates = []
+    for item in items:
+        value = (item.get("published_at") or "").strip()[:10]
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            continue
+        try:
+            parsed = datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        dates.append(parsed)
+
+    if not dates:
+        return {"count": 0, "start": None, "end": None}
+    return {
+        "count": len(dates),
+        "start": min(dates).isoformat(),
+        "end": max(dates).isoformat(),
+    }
+
+
+def _analysis_platform_profiles(items: list[dict]) -> list[dict]:
+    grouped = {}
+    for item in items:
+        platform_id, platform_name = _analysis_platform(item)
+        grouped.setdefault(
+            platform_id,
+            {"id": platform_id, "name": platform_name, "items": []},
+        )
+        grouped[platform_id]["items"].append(item)
+
+    total = len(items)
+    profiles = []
+    for group in grouped.values():
+        group_items = group.pop("items")
+        structured = [item for item in group_items if _analysis_is_structured(item)]
+        structured_count = len(structured)
+        dimensions = {
+            key: _analysis_dimension(structured, key, structured_count)
+            for key in ("case_type", "built_thing", "hook", "target_audience")
+        }
+        profiles.append(
+            {
+                **group,
+                "count": len(group_items),
+                "share": _analysis_rate(len(group_items), total),
+                "structured_count": structured_count,
+                "structured_rate": _analysis_rate(structured_count, len(group_items)),
+                "candidate_count": sum(
+                    1 for item in structured if _analysis_is_candidate(item)
+                ),
+                "risk_count": sum(1 for item in structured if _analysis_has_risk(item)),
+                "top_labels": {
+                    key: dimension["items"][:3]
+                    for key, dimension in dimensions.items()
+                },
+            }
+        )
+
+    return sorted(profiles, key=lambda item: (-item["count"], item["name"]))
+
+
+def _analysis_platform_comparisons(items: list[dict]) -> list[dict]:
+    platform_items = {}
+    for item in items:
+        platform_id, platform_name = _analysis_platform(item)
+        platform_items.setdefault(
+            platform_id,
+            {"id": platform_id, "name": platform_name, "items": []},
+        )
+        platform_items[platform_id]["items"].append(item)
+
+    if len(platform_items) < 2:
+        return []
+
+    rows = []
+    for key in ("case_type", "hook", "built_thing"):
+        labels = set()
+        counts_by_platform = {}
+        for platform_id, platform in platform_items.items():
+            counts = {}
+            labeled_items = 0
+            for item in platform["items"]:
+                item_labels = _analysis_labels(item, key)
+                if item_labels:
+                    labeled_items += 1
+                for label in item_labels:
+                    labels.add(label)
+                    counts[label] = counts.get(label, 0) + 1
+            counts_by_platform[platform_id] = {
+                "counts": counts,
+                "denominator": labeled_items,
+                "base_denominator": len(platform["items"]),
+            }
+
+        if any(
+            value["denominator"] == 0 for value in counts_by_platform.values()
+        ):
+            continue
+
+        for label in labels:
+            platforms = []
+            total_count = 0
+            for platform_id, platform in platform_items.items():
+                denominator = counts_by_platform[platform_id]["denominator"]
+                base_denominator = counts_by_platform[platform_id]["base_denominator"]
+                count = counts_by_platform[platform_id]["counts"].get(label, 0)
+                total_count += count
+                platforms.append(
+                    {
+                        "id": platform_id,
+                        "name": platform["name"],
+                        "count": count,
+                        "denominator": denominator,
+                        "rate": _analysis_rate(count, denominator),
+                        "base_denominator": base_denominator,
+                        "coverage": _analysis_rate(denominator, base_denominator),
+                    }
+                )
+            if total_count < 10:
+                continue
+            rates = [platform["rate"] for platform in platforms]
+            rows.append(
+                {
+                    "dimension": key,
+                    "dimension_label": _ANALYSIS_DIMENSION_LABELS[key],
+                    "label": label,
+                    "count": total_count,
+                    "gap": round(max(rates) - min(rates), 4),
+                    "platforms": sorted(platforms, key=lambda item: item["id"]),
+                }
+            )
+
+    return sorted(
+        rows,
+        key=lambda item: (-item["gap"], -item["count"], item["label"]),
+    )[:10]
+
+
+def _analysis_opportunities(items: list[dict], denominator: int) -> list[dict]:
+    grouped = {}
+    for item in items:
+        platform_id, platform_name = _analysis_platform(item)
+        for label in _analysis_labels(item, "built_thing"):
+            row = grouped.setdefault(
+                label,
+                {
+                    "label": label,
+                    "count": 0,
+                    "candidate_count": 0,
+                    "safe_candidate_count": 0,
+                    "risk_count": 0,
+                    "platforms": {},
+                },
+            )
+            row["count"] += 1
+            candidate = _analysis_is_candidate(item)
+            risk = _analysis_has_risk(item)
+            row["candidate_count"] += int(candidate)
+            row["safe_candidate_count"] += int(candidate and not risk)
+            row["risk_count"] += int(risk)
+            row["platforms"].setdefault(
+                platform_id,
+                {"id": platform_id, "name": platform_name, "count": 0},
+            )
+            row["platforms"][platform_id]["count"] += 1
+
+    rows = []
+    for row in grouped.values():
+        if row["count"] < 10:
+            continue
+        platforms = sorted(
+            row.pop("platforms").values(),
+            key=lambda item: (-item["count"], item["name"]),
+        )
+        rows.append(
+            {
+                **row,
+                "denominator": denominator,
+                "share": _analysis_rate(row["count"], denominator),
+                "candidate_rate": _analysis_rate(
+                    row["candidate_count"], row["count"]
+                ),
+                "safe_candidate_rate": _analysis_rate(
+                    row["safe_candidate_count"], row["count"]
+                ),
+                "risk_rate": _analysis_rate(row["risk_count"], row["count"]),
+                "platforms": platforms,
+            }
+        )
+
+    return sorted(
+        rows,
+        key=lambda item: (
+            -item["safe_candidate_count"],
+            -item["candidate_count"],
+            -item["count"],
+            item["label"],
+        ),
+    )[:8]
+
+
+def _analysis_recipes(items: list[dict], denominator: int) -> list[dict]:
+    grouped = {}
+    for item in items:
+        built_labels = _analysis_labels(item, "built_thing")
+        hook_labels = _analysis_labels(item, "hook")
+        for built_label in built_labels:
+            for hook_label in hook_labels:
+                key = (built_label, hook_label)
+                row = grouped.setdefault(
+                    key,
+                    {
+                        "built_thing": built_label,
+                        "hook": hook_label,
+                        "count": 0,
+                        "candidate_count": 0,
+                        "safe_candidate_count": 0,
+                    },
+                )
+                row["count"] += 1
+                candidate = _analysis_is_candidate(item)
+                row["candidate_count"] += int(candidate)
+                row["safe_candidate_count"] += int(
+                    candidate and not _analysis_has_risk(item)
+                )
+
+    rows = []
+    for row in grouped.values():
+        if row["count"] < 10:
+            continue
+        rows.append(
+            {
+                **row,
+                "denominator": denominator,
+                "share": _analysis_rate(row["count"], denominator),
+                "candidate_rate": _analysis_rate(
+                    row["candidate_count"], row["count"]
+                ),
+            }
+        )
+    return sorted(
+        rows,
+        key=lambda item: (
+            -item["safe_candidate_count"],
+            -item["candidate_count"],
+            -item["count"],
+        ),
+    )[:6]
+
+
+def _analysis_field_quality(items: list[dict], structured: list[dict]) -> dict:
+    core_fields = []
+    for key in _ANALYSIS_CORE_FIELDS:
+        count = sum(1 for item in structured if _analysis_labels(item, key))
+        core_fields.append(
+            {
+                "id": key,
+                "label": _ANALYSIS_DIMENSION_LABELS[key],
+                "count": count,
+                "denominator": len(structured),
+                "rate": _analysis_rate(count, len(structured)),
+                "missing": max(len(structured) - count, 0),
+            }
+        )
+
+    auxiliary_labels = {
+        "published_at": "发布时间",
+        "hot_score": "热度分",
+        "likes": "点赞",
+        "comments": "评论",
+        "collects": "收藏",
+        "shares": "分享",
+        "cover_url": "封面",
+    }
+    auxiliary_fields = []
+    for key, label in auxiliary_labels.items():
+        count = sum(1 for item in items if str(item.get(key) or "").strip())
+        auxiliary_fields.append(
+            {
+                "id": key,
+                "label": label,
+                "count": count,
+                "denominator": len(items),
+                "rate": _analysis_rate(count, len(items)),
+                "missing": max(len(items) - count, 0),
+            }
+        )
+
+    completed_cells = sum(field["count"] for field in core_fields)
+    possible_cells = len(structured) * len(core_fields)
+    return {
+        "core_completeness": _analysis_rate(completed_cells, possible_cells),
+        "core_fields": core_fields,
+        "auxiliary_fields": auxiliary_fields,
+    }
+
+
+def _build_analysis_report(content: dict, generated_at: str) -> dict:
+    items = list(content.get("items", []))
+    structured = [item for item in items if _analysis_is_structured(item)]
+    total = len(items)
+    structured_count = len(structured)
+    unstructured_count = total - structured_count
+    candidates = [item for item in structured if _analysis_is_candidate(item)]
+    risk_items = [item for item in structured if _analysis_has_risk(item)]
+    safe_candidates = [item for item in candidates if not _analysis_has_risk(item)]
+    risky_candidates = [item for item in candidates if _analysis_has_risk(item)]
+
+    dimensions = [
+        _analysis_dimension(structured, key, structured_count)
+        for key in _ANALYSIS_DIMENSION_LABELS
+    ]
+    dimensions_by_id = {dimension["id"]: dimension for dimension in dimensions}
+    platforms = _analysis_platform_profiles(items)
+    comparisons = _analysis_platform_comparisons(structured)
+    opportunities = _analysis_opportunities(structured, structured_count)
+    recipes = _analysis_recipes(structured, structured_count)
+    quality = _analysis_field_quality(items, structured)
+    import_audit = dict(content.get("imports", {}).get("audit", {}))
+    deduplication = dict(content.get("deduplication", {}))
+    unit = (
+        "精确 URL 唯一内容"
+        if not int(deduplication.get("missing_url_items", 0) or 0)
+        else "内容条目；有 URL 时按精确 URL 去重"
+    )
+    raw_rows = int(import_audit.get("raw_rows", 0) or 0)
+    duplicate_urls = int(import_audit.get("duplicate_urls", 0) or 0)
+    all_window = _analysis_date_window(items)
+    structured_window = _analysis_date_window(structured)
+    unstructured_window = _analysis_date_window(
+        [item for item in items if not _analysis_is_structured(item)]
+    )
+
+    freshness_days = None
+    if structured_window["end"]:
+        generated_date = datetime.fromisoformat(
+            generated_at.replace("Z", "+00:00")
+        ).date()
+        freshness_days = max(
+            (generated_date - datetime.strptime(
+                structured_window["end"], "%Y-%m-%d"
+            ).date()).days,
+            0,
+        )
+
+    case_rows = dimensions_by_id["case_type"]["items"]
+    built_rows = dimensions_by_id["built_thing"]["items"]
+    top_case = case_rows[0] if case_rows else None
+    top_built = built_rows[0] if built_rows else None
+    if top_case and top_built:
+        headline = f"样本以「{top_case['name']}」为主，「{top_built['name']}」最集中"
+    else:
+        headline = "当前样本尚不足以形成结构化判断"
+    summary = (
+        f"本报告分析 {total} 条{unit}，其中 {structured_count} 条含结构化选题标签。"
+        f"{len(safe_candidates)} 条同时具备“有结果/可复刻”信号且未标风险，可进入优先人工复核；"
+        "所有结论只描述当前样本构成，不代表全网趋势、平台偏好或因果表现。"
+    )
+
+    insights = []
+    comparison_lookup = {
+        (row["dimension"], row["label"]): row for row in comparisons
+    }
+    true_case = comparison_lookup.get(("case_type", "真案例"))
+    tutorial = comparison_lookup.get(("case_type", "教程"))
+    if true_case and tutorial:
+        true_rates = {item["id"]: item for item in true_case["platforms"]}
+        tutorial_rates = {item["id"]: item for item in tutorial["platforms"]}
+        xhs_true = true_rates.get("xiaohongshu")
+        douyin_tutorial = tutorial_rates.get("douyin")
+        if xhs_true and douyin_tutorial:
+            insights.append(
+                {
+                    "priority": "P1",
+                    "type": "平台实验",
+                    "title": "用同题双版本验证平台化表达",
+                    "evidence": (
+                        f"小红书结构化样本中“真案例”占 {_analysis_percent(xhs_true['rate'])} "
+                        f"（{xhs_true['count']}/{xhs_true['denominator']}）；"
+                        f"抖音中“教程”占 {_analysis_percent(douyin_tutorial['rate'])} "
+                        f"（{douyin_tutorial['count']}/{douyin_tutorial['denominator']}）。"
+                    ),
+                    "judgment": "差异可用于提出内容实验假设，但采集词与来源并未受控，不能解释为平台用户偏好。",
+                    "action": "选 10 个相同主题，各制作“结果证据版”和“过程教学版”，在同一窗口按平台分别发布并记录平台内指标。",
+                    "owner": "内容策略",
+                    "acceptance": "同题、同窗口、每种脚本至少 10 条；只做平台内比较。",
+                }
+            )
+
+    if opportunities:
+        top = opportunities[0]
+        insights.append(
+            {
+                "priority": "P1",
+                "type": "候选池",
+                "title": f"先复核「{top['label']}」低风险候选",
+                "evidence": (
+                    f"该方向共 {top['count']} 条，其中 {top['safe_candidate_count']} 条"
+                    f"具备“有结果/可复刻”信号且未标风险。"
+                ),
+                "judgment": "这是当前样本里可直接进入编辑复核的最大队列，代表供给密度，不代表传播表现。",
+                "action": "优先抽取 12 条，逐条核对原文证据、可复刻步骤与失败边界，再拆为结果、过程、反例三类选题。",
+                "owner": "选题编辑",
+                "acceptance": "每条保留原文链接、证据摘要、风险结论和建议平台。",
+            }
+        )
+
+    risk_dimension = dimensions_by_id["risk_flag"]
+    top_risk = risk_dimension["items"][0] if risk_dimension["items"] else None
+    if top_risk:
+        insights.append(
+            {
+                "priority": "P0",
+                "type": "风险治理",
+                "title": "把风险标签变成发布前质检门",
+                "evidence": (
+                    f"{len(risk_items)}/{structured_count} 条结构化样本至少带一个风险标签"
+                    f"（{_analysis_percent(_analysis_rate(len(risk_items), structured_count))}）；"
+                    f"首要风险是“{top_risk['name']}”{top_risk['count']} 条。"
+                ),
+                "judgment": "风险标签可能重叠，适合建立人工复核队列，不应直接删除或判定内容失真。",
+                "action": "发布前逐条检查来源、商业关系、信息密度和活动语境；风险未解除的内容只留在观察池。",
+                "owner": "内容审核",
+                "acceptance": "风险队列 100% 留下复核结论与处理人。",
+            }
+        )
+
+    lowest_field = min(
+        quality["core_fields"], key=lambda item: (item["rate"], item["label"])
+    ) if quality["core_fields"] else None
+    if lowest_field and structured_count:
+        insights.append(
+            {
+                "priority": "P2",
+                "type": "数据质量",
+                "title": f"先补齐“{lowest_field['label']}”再做细分比较",
+                "evidence": (
+                    f"该字段仅覆盖 {lowest_field['count']}/{lowest_field['denominator']} 条"
+                    f"（{_analysis_percent(lowest_field['rate'])}），缺失 {lowest_field['missing']} 条。"
+                ),
+                "judgment": "缺失值会放大已标注类别的占比，当前只能描述已标样本，不能把空值视为否定。",
+                "action": "下一批采集把该字段设为必填，并对高优先级候选做回填；覆盖率达到 90% 后再做类别排名。",
+                "owner": "数据维护",
+                "acceptance": "新批次该字段覆盖率不低于 90%，并记录空值原因。",
+            }
+        )
+
+    return {
+        "version": 1,
+        "scope": {
+            "unit": unit,
+            "generated_at": generated_at,
+            "total_items": total,
+            "structured_items": structured_count,
+            "unstructured_items": unstructured_count,
+            "structured_rate": _analysis_rate(structured_count, total),
+            "source_files": len(content.get("collection_runs", [])),
+            "date_windows": {
+                "all": all_window,
+                "structured": structured_window,
+                "unstructured": unstructured_window,
+            },
+            "freshness_days": freshness_days,
+        },
+        "executive_summary": {
+            "headline": headline,
+            "summary": summary,
+        },
+        "sample_quality": {
+            "raw_rows": raw_rows,
+            "unique_items": total,
+            "duplicate_urls": duplicate_urls,
+            "duplicate_rate": _analysis_rate(duplicate_urls, raw_rows),
+            "merged_duplicate_urls": int(
+                deduplication.get("merged_duplicate_urls", 0) or 0
+            ),
+            "url_items": int(deduplication.get("url_items", 0) or 0),
+            "missing_url_items": int(
+                deduplication.get("missing_url_items", 0) or 0
+            ),
+            "import_audit": import_audit,
+            "field_quality": quality,
+        },
+        "candidate_pool": {
+            "count": len(candidates),
+            "denominator": structured_count,
+            "rate": _analysis_rate(len(candidates), structured_count),
+            "safe_count": len(safe_candidates),
+            "safe_rate": _analysis_rate(len(safe_candidates), structured_count),
+            "risk_count": len(risky_candidates),
+            "risk_rate": _analysis_rate(len(risky_candidates), structured_count),
+        },
+        "risk_summary": {
+            "count": len(risk_items),
+            "denominator": structured_count,
+            "rate": _analysis_rate(len(risk_items), structured_count),
+            "items": risk_dimension["items"],
+        },
+        "platforms": platforms,
+        "dimensions": dimensions,
+        "platform_comparisons": comparisons,
+        "opportunities": opportunities,
+        "recipes": recipes,
+        "insights": insights,
+        "methodology": {
+            "rules": [
+                "CSV 导入内与跨来源合并后都会按精确 URL 去重；导入重复率来自 CSV 逐行审计。",
+                "结构化标签分析以含案例类型的样本为分母；空值不按否定值处理。",
+                "风险标签可重叠，因此各风险项占比之和可能超过风险样本占比。",
+                "平台差异只描述当前采集样本，并未控制关键词、窗口和来源。",
+                "页面生成时间不等于数据采集时间；报告同时展示数据截止日。",
+            ],
+            "safe_claims": [
+                "当前样本的来源构成、标签覆盖、字段完整度与精确 URL 重复率",
+                "带明确分母的平台样本差异与风险复核队列",
+                "基于“有结果/可复刻”且无风险标签的人工候选池",
+            ],
+            "unsupported_claims": [
+                "全网趋势、市场份额、增长率或平台用户偏好",
+                "真实抓取成功率、失败率、纳入率或采集健康度",
+                "爆款概率、转化率、因果效果或跨平台原始热度比较",
+            ],
+        },
+    }
 
 
 def _build_content_keyword_stats(content: dict) -> list:
@@ -653,50 +1357,69 @@ def _build_content_keyword_stats(content: dict) -> list:
     platform_counts = {}
 
     for item in content.get("items", []):
-        labels = []
-        for key in ("case_type", "built_thing", "tool_stack", "hook", "content_value", "risk_flag"):
-            labels.extend(_topic_labels(item, key))
-
         platform_name = item.get("platform_name") or item.get("platform_id") or "未知平台"
-        for label in dict.fromkeys(label for label in labels if label):
-            keywords[label] = keywords.get(label, 0) + 1
-            platform_counts.setdefault(label, {})
-            platform_counts[label][platform_name] = platform_counts[label].get(platform_name, 0) + 1
+        for key in _ANALYSIS_DIMENSION_LABELS:
+            for label in _analysis_labels(item, key):
+                identity = (key, label)
+                keywords[identity] = keywords.get(identity, 0) + 1
+                platform_counts.setdefault(identity, {})
+                platform_counts[identity][platform_name] = (
+                    platform_counts[identity].get(platform_name, 0) + 1
+                )
 
     return [
         {
             "name": name,
+            "dimension": key,
+            "dimension_label": _ANALYSIS_DIMENSION_LABELS[key],
             "matched": count,
             "platforms": [
                 {"name": platform_name, "matched": platform_count}
                 for platform_name, platform_count in sorted(
-                    platform_counts.get(name, {}).items(),
+                    platform_counts.get((key, name), {}).items(),
                     key=lambda item: (-item[1], item[0]),
                 )
             ],
         }
-        for name, count in sorted(keywords.items(), key=lambda item: (-item[1], item[0].lower()))
+        for (key, name), count in sorted(
+            keywords.items(),
+            key=lambda item: (-item[1], item[0][1].lower(), item[0][0]),
+        )
     ]
 
 
 def _build_public_stats(content: dict, reports: list | None = None) -> dict:
     reports = reports or []
+    content_total = int(content.get("total", 0) or 0)
+    items = list(content.get("items", []))
+    items_by_platform = {}
+    for item in items:
+        platform_id = item.get("platform_id") or item.get("platform_name") or "unknown"
+        items_by_platform.setdefault(platform_id, []).append(item)
+
     platforms = []
     for platform in content.get("platforms", []):
         count = int(platform.get("count", 0) or 0)
+        platform_id = platform.get("id") or platform.get("name") or "unknown"
+        platform_items = items_by_platform.get(platform_id, [])
         platforms.append(
             {
-                "id": platform.get("id") or platform.get("name") or "unknown",
+                "id": platform_id,
                 "name": platform.get("name") or platform.get("id") or "未知平台",
                 "count": count,
                 "crawled": count,
                 "matched": count,
+                "share": _analysis_rate(count, content_total),
+                "structured_count": sum(
+                    1 for item in platform_items if _analysis_is_structured(item)
+                ),
             }
         )
 
-    content_total = int(content.get("total", 0) or 0)
+    generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    analysis_report = _build_analysis_report(content, generated_at)
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "generated_at": generated_at,
         "latest_report": None,
         "totals": {
             "reports": len(reports),
@@ -708,6 +1431,12 @@ def _build_public_stats(content: dict, reports: list | None = None) -> dict:
         "platforms": platforms,
         "keywords": _build_content_keyword_stats(content),
         "failed_platforms": [],
+        "collection_status": {
+            "state": "not_connected",
+            "label": "采集运行状态未接入",
+            "detail": "当前静态产物未保存成功、失败与过滤日志，不能判断采集健康度。",
+        },
+        "analysis_report": analysis_report,
         "reports": reports,
     }
 

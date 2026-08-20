@@ -5,7 +5,10 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scripts.prepare_pages_artifact import prepare_pages_artifact
+from scripts.prepare_pages_artifact import (
+    _analysis_platform_comparisons,
+    prepare_pages_artifact,
+)
 
 
 class PreparePagesArtifactTests(unittest.TestCase):
@@ -94,8 +97,23 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(stats["totals"]["content_items"], 1)
             self.assertEqual(
                 stats["platforms"],
-                [{"id": "douyin-topic", "name": "抖音选题", "count": 1, "crawled": 1, "matched": 1}],
+                [
+                    {
+                        "id": "douyin-topic",
+                        "name": "抖音选题",
+                        "count": 1,
+                        "crawled": 1,
+                        "matched": 1,
+                        "share": 1.0,
+                        "structured_count": 1,
+                    }
+                ],
             )
+            report = stats["analysis_report"]
+            self.assertEqual(report["scope"]["total_items"], 1)
+            self.assertEqual(report["scope"]["structured_items"], 1)
+            self.assertEqual(report["candidate_pool"]["safe_count"], 1)
+            self.assertEqual(report["scope"]["date_windows"]["structured"]["end"], "2026-06-15")
 
     def test_writes_content_home_without_copying_report_html(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -213,6 +231,7 @@ class PreparePagesArtifactTests(unittest.TestCase):
                         "platform,title,url,case_type,built_thing,tool_stack,content_value,description",
                         "douyin,AI 做作品集,https://www.douyin.com/video/1,真案例,网站,Codex,有结果,搜索描述",
                         "xiaohongshu,Codex 工作流,https://www.xiaohongshu.com/explore/1,教程,自动化流程,Codex,可复刻,小红书描述",
+                        "douyin,重复作品集,https://www.douyin.com/video/1,真案例,网站,Codex,有结果,重复 URL",
                     ]
                 ),
                 encoding="utf-8",
@@ -231,9 +250,27 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(stats["platforms"][0]["crawled"], 1)
             self.assertEqual(stats["platforms"][0]["matched"], 1)
             self.assertEqual(stats["keywords"][0]["name"], "Codex")
+            self.assertEqual(stats["keywords"][0]["dimension"], "tool_stack")
+            self.assertEqual(stats["keywords"][0]["dimension_label"], "工具栈")
             self.assertEqual(stats["keywords"][0]["matched"], 2)
             self.assertEqual(stats["failed_platforms"], [])
+            self.assertEqual(stats["collection_status"]["state"], "not_connected")
             self.assertIn("generated_at", stats)
+
+            report = stats["analysis_report"]
+            self.assertEqual(report["version"], 1)
+            self.assertEqual(report["scope"]["total_items"], 2)
+            self.assertEqual(report["scope"]["structured_items"], 2)
+            self.assertEqual(report["sample_quality"]["raw_rows"], 3)
+            self.assertEqual(report["sample_quality"]["duplicate_urls"], 1)
+            self.assertEqual(report["sample_quality"]["duplicate_rate"], 0.3333)
+            self.assertEqual(report["candidate_pool"]["count"], 2)
+            self.assertEqual(report["candidate_pool"]["safe_count"], 2)
+            self.assertEqual(report["risk_summary"]["count"], 0)
+            dimensions = {item["id"]: item for item in report["dimensions"]}
+            self.assertEqual(dimensions["case_type"]["denominator"], 2)
+            self.assertEqual(dimensions["case_type"]["items"][0]["count"], 1)
+            self.assertIn("unsupported_claims", report["methodology"])
 
     def test_copies_stats_panel_assets_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -259,6 +296,127 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual((dest / "stats" / "index.html").read_text(encoding="utf-8"), "<html>stats</html>")
             self.assertEqual((dest / "stats" / "app.js").read_text(encoding="utf-8"), "console.log('stats')")
             self.assertEqual(manifest["stats_panel"], "stats/index.html")
+
+    def test_deduplicates_same_url_across_import_and_txt_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "output"
+            dest = root / "public"
+            import_source = root / "imports"
+            (source / "2026-06-30" / "txt").mkdir(parents=True)
+            import_source.mkdir()
+
+            (source / "2026-06-30" / "txt" / "12-00.txt").write_text(
+                "douyin-topic | 抖音选题\n"
+                "1. 快照版本 [URL:https://www.douyin.com/video/same]",
+                encoding="utf-8",
+            )
+            (import_source / "cases.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,case_type,built_thing,content_value",
+                        "douyin,结构化版本,https://www.douyin.com/video/same,真案例,网站,有结果",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, import_source=import_source)
+
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            stats = json.loads((dest / "stats.json").read_text(encoding="utf-8"))
+            self.assertEqual(content["total"], 1)
+            self.assertEqual(content["items"][0]["title"], "结构化版本")
+            self.assertEqual(content["deduplication"]["merged_duplicate_urls"], 1)
+            self.assertEqual(stats["analysis_report"]["scope"]["total_items"], 1)
+            self.assertEqual(
+                stats["analysis_report"]["sample_quality"]["merged_duplicate_urls"],
+                1,
+            )
+
+    def test_platform_comparisons_use_each_dimension_labeled_base(self):
+        items = []
+        for index in range(10):
+            items.append(
+                {
+                    "platform_id": "douyin-topic",
+                    "platform_name": "抖音选题",
+                    "case_type": "真案例",
+                    "hook": "几小时上线",
+                    "url": f"https://douyin.example/{index}",
+                }
+            )
+            items.append(
+                {
+                    "platform_id": "xiaohongshu-topic",
+                    "platform_name": "小红书选题",
+                    "case_type": "真案例",
+                    "hook": "几小时上线",
+                    "url": f"https://xhs.example/{index}",
+                }
+            )
+        for index in range(10):
+            items.append(
+                {
+                    "platform_id": "douyin-topic",
+                    "platform_name": "抖音选题",
+                    "case_type": "教程",
+                    "hook": "",
+                    "url": f"https://douyin.example/missing/{index}",
+                }
+            )
+        for index in range(30):
+            items.append(
+                {
+                    "platform_id": "xiaohongshu-topic",
+                    "platform_name": "小红书选题",
+                    "case_type": "教程",
+                    "hook": "",
+                    "url": f"https://xhs.example/missing/{index}",
+                }
+            )
+
+        comparisons = _analysis_platform_comparisons(items)
+        hook_row = next(
+            row
+            for row in comparisons
+            if row["dimension"] == "hook" and row["label"] == "几小时上线"
+        )
+        platforms = {item["id"]: item for item in hook_row["platforms"]}
+        self.assertEqual(platforms["douyin"]["denominator"], 10)
+        self.assertEqual(platforms["xiaohongshu"]["denominator"], 10)
+        self.assertEqual(platforms["douyin"]["rate"], 1.0)
+        self.assertEqual(platforms["xiaohongshu"]["rate"], 1.0)
+        self.assertEqual(platforms["douyin"]["coverage"], 0.5)
+        self.assertEqual(platforms["xiaohongshu"]["coverage"], 0.25)
+        self.assertEqual(hook_row["gap"], 0.0)
+
+    def test_unstructured_only_sample_does_not_emit_field_completion_action(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "missing-output"
+            dest = root / "public"
+            import_source = root / "imports"
+            import_source.mkdir()
+            (import_source / "search.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,description",
+                        "douyin,无结构化标签,https://www.douyin.com/video/plain,普通搜索结果",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, import_source=import_source)
+            stats = json.loads((dest / "stats.json").read_text(encoding="utf-8"))
+            report = stats["analysis_report"]
+            self.assertEqual(report["scope"]["structured_items"], 0)
+            self.assertEqual(report["insights"], [])
+            self.assertEqual(
+                report["sample_quality"]["field_quality"]["core_completeness"],
+                0.0,
+            )
 
     def test_content_json_excludes_plain_hotlist_snapshot_items(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -463,6 +621,32 @@ class PreparePagesArtifactTests(unittest.TestCase):
             self.assertEqual(content["imports"]["total"], 1)
             self.assertEqual(content["total"], 1)
             self.assertEqual(content["items"][0]["title"], "保留真案例")
+
+    def test_filtered_row_does_not_hide_later_valid_row_with_same_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "missing-output"
+            dest = root / "public"
+            import_source = root / "imports"
+            import_source.mkdir()
+            (import_source / "cases.csv").write_text(
+                "\n".join(
+                    [
+                        "platform,title,url,case_type,built_thing,content_value",
+                        "douyin,先出现的无关内容,https://www.douyin.com/video/shared,无关,,",
+                        "douyin,后出现的有效案例,https://www.douyin.com/video/shared,真案例,网站,有结果",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            prepare_pages_artifact(source, dest, import_source=import_source)
+            content = json.loads((dest / "content.json").read_text(encoding="utf-8"))
+            audit = content["imports"]["audit"]
+            self.assertEqual(content["total"], 1)
+            self.assertEqual(content["items"][0]["title"], "后出现的有效案例")
+            self.assertEqual(audit["irrelevant_topic"], 1)
+            self.assertEqual(audit["duplicate_urls"], 0)
 
     def test_skips_english_pronunciation_noise_from_douyin_keyword_imports(self):
         with tempfile.TemporaryDirectory() as tmp:
